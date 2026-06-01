@@ -486,18 +486,21 @@ class CoherentMotionExperiment:
         self.draw_text_centered(score_text, self.label_font, score_color, 140)
 
         # 終了案内
-        self.draw_text_centered("スペースキーで終了 / Rキーでもう一度", self.small_font, (150, 150, 150), 200)
+        self.draw_text_centered("スペースキーでもう一度 / Escキーで終了", self.small_font, (150, 150, 150), 200)
 
         pygame.display.flip()
 
         # キー待ち
         while True:
-            event = self.handle_quit_events()
-            if event and event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    return False  # 終了
-                elif event.key == pygame.K_r:
-                    return True  # もう一度
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return False  # 終了
+                    elif event.key == pygame.K_SPACE:
+                        return True  # もう一度
             self.clock.tick(FPS)
 
     # --------------------------------------------------------
