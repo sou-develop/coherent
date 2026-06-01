@@ -1,6 +1,6 @@
 {
     "num_digits": 15,
-    "digit_display_time_ms": 300,
+    "digit_display_time_ms": 1500,
     "digit_blank_time_ms": 100,
     "coherent_duration_sec": 8.0,
     "coherence": 0.5,
