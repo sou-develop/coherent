@@ -16,10 +16,25 @@ import math
 import sys
 import os
 import csv
+import json
 from datetime import datetime
 
 # ============================================================
-# 設定パラメータ（ここで実験条件を調整できます）
+# 設定ファイル読み込み
+# ============================================================
+
+def load_config():
+    """config.json から設定を読み込む"""
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+_config = load_config()
+
+# ============================================================
+# 設定パラメータ（config.json で上書き可能）
 # ============================================================
 
 # --- 画面設定 ---
@@ -29,24 +44,24 @@ FULLSCREEN = False  # True にするとフルスクリーン
 BG_COLOR = (30, 30, 30)  # 背景色（ダークグレー）
 
 # --- 数字表示（RSVP）設定 ---
-NUM_DIGITS = 15  # 表示する数字の桁数
-DIGIT_DISPLAY_TIME_MS = 300  # 各数字の表示時間（ミリ秒）
-DIGIT_BLANK_TIME_MS = 100  # 数字間のブランク時間（ミリ秒）
+NUM_DIGITS = _config.get("num_digits", 15)
+DIGIT_DISPLAY_TIME_MS = _config.get("digit_display_time_ms", 300)
+DIGIT_BLANK_TIME_MS = _config.get("digit_blank_time_ms", 100)
 DIGIT_FONT_SIZE = 120  # 数字のフォントサイズ
 DIGIT_COLOR = (255, 255, 255)  # 数字の色（白）
 
 # --- コヒーレント運動設定 ---
-COHERENT_DURATION_SEC = 8.0  # コヒーレント運動の表示時間（秒）
-NUM_DOTS = 200  # ドットの数
+COHERENT_DURATION_SEC = _config.get("coherent_duration_sec", 8.0)
+NUM_DOTS = _config.get("num_dots", 200)
 DOT_RADIUS = 3  # ドットの半径（ピクセル）
 DOT_COLOR = (255, 255, 255)  # ドットの色（白）
-DOT_SPEED = 3.0  # ドットの移動速度（ピクセル/フレーム）
-COHERENCE = 0.5  # コヒーレンス率（0.0〜1.0、1.0で全て同一方向）
+DOT_SPEED = _config.get("dot_speed", 3.0)
+COHERENCE = _config.get("coherence", 0.5)
 APERTURE_RADIUS = 250  # ドット表示エリアの半径（円形アパーチャ）
-DOT_LIFETIME = 30  # ドットの寿命（フレーム数、0で無限）
+DOT_LIFETIME = 0  # ドットの寿命（0で無限 = リロードしない）
 
 # コヒーレント方向（度、0=右、90=上、180=左、270=下）
-COHERENT_DIRECTION_DEG = 0  # 右方向
+COHERENT_DIRECTION_DEG = _config.get("coherent_direction_deg", 0)
 
 # --- 入力画面設定 ---
 INPUT_FONT_SIZE = 48
@@ -125,13 +140,6 @@ class Dot:
             if dist2 > self.aperture_radius:
                 self._randomize_position()
 
-        # 寿命切れの場合はリセット
-        if DOT_LIFETIME > 0 and self.lifetime >= DOT_LIFETIME:
-            self._randomize_position()
-            self.lifetime = 0
-            if not self.is_coherent:
-                self.direction = random.uniform(0, 2 * math.pi)
-
     def draw(self, surface):
         """ドットを描画"""
         pygame.draw.circle(surface, DOT_COLOR, (int(self.x), int(self.y)), DOT_RADIUS)
@@ -158,21 +166,44 @@ class CoherentMotionExperiment:
         pygame.display.set_caption("コヒーレント運動実験")
         self.clock = pygame.time.Clock()
 
-        # フォントの初期化（日本語対応フォントを優先して使用）
-        JP_FONT_CANDIDATES = ["hiraginosansgb", "applegothic", "osaka", "notosanscjkjp", None]
+        # フォントの初期化（フォントファイルを直接指定してクロスプラットフォーム対応）
+        FONT_FILE_CANDIDATES = [
+            # macOS
+            "/System/Library/Fonts/Hiragino Sans GB.ttc",
+            "/Library/Fonts/Arial Unicode.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+            "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+            # Windows
+            "C:/Windows/Fonts/yugothic.ttf",
+            "C:/Windows/Fonts/YuGothM.ttc",
+            "C:/Windows/Fonts/meiryo.ttc",
+            "C:/Windows/Fonts/msgothic.ttc",
+            # Linux
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+        ]
 
-        def get_jp_font(size, bold=False):
-            for name in JP_FONT_CANDIDATES:
-                f = pygame.font.SysFont(name, size, bold=bold)
-                if f is not None:
-                    return f
-            return pygame.font.Font(None, size)  # 最終フォールバック
+        def find_font_path():
+            for path in FONT_FILE_CANDIDATES:
+                if os.path.exists(path):
+                    return path
+            return None
 
-        self.digit_font = get_jp_font(DIGIT_FONT_SIZE, bold=True)
-        self.input_font = get_jp_font(INPUT_FONT_SIZE)
-        self.label_font = get_jp_font(32)
-        self.small_font = get_jp_font(24)
-        self.title_font = get_jp_font(56, bold=True)
+        font_path = find_font_path()
+
+        def get_font(size):
+            if font_path:
+                try:
+                    return pygame.font.Font(font_path, size)
+                except:
+                    pass
+            return pygame.font.Font(None, size)
+
+        self.digit_font = get_font(DIGIT_FONT_SIZE)
+        self.input_font = get_font(INPUT_FONT_SIZE)
+        self.label_font = get_font(32)
+        self.small_font = get_font(24)
+        self.title_font = get_font(56)
 
         # 実験データ
         self.digit_sequence = []
@@ -210,26 +241,11 @@ class CoherentMotionExperiment:
     # フェーズ 0: 開始画面
     # --------------------------------------------------------
     def phase_start_screen(self):
-        """開始画面を表示"""
+        """開始画面を表示（スペースキーで開始のみ）"""
         self.screen.fill(BG_COLOR)
 
-        # タイトル
-        self.draw_text_centered("コヒーレント運動実験", self.title_font, (100, 200, 255), -80)
-
-        # 説明
-        instructions = [
-            "1. 数字が1つずつ画面中央に表示されます",
-            "2. 表示された数字をできるだけ覚えてください",
-            "3. その後、ドットの運動が表示されます",
-            "4. 最後に覚えた数字を入力してください",
-        ]
-        for i, line in enumerate(instructions):
-            surface = self.small_font.render(line, True, (200, 200, 200))
-            rect = surface.get_rect(center=(self.width // 2, self.height // 2 + i * 40))
-            self.screen.blit(surface, rect)
-
-        # 開始ボタン
-        self.draw_text_centered("スペースキーで開始", self.label_font, (255, 220, 100), 150)
+        # スペースキーで開始の案内のみ表示
+        self.draw_text_centered("スペースキーで開始", self.label_font, (255, 220, 100), 0)
 
         pygame.display.flip()
 
@@ -323,10 +339,7 @@ class CoherentMotionExperiment:
                 dot.update()
                 dot.draw(self.screen)
 
-            # 残り時間表示（小さく上部に）
-            remaining = max(0, (duration_ms - elapsed) / 1000)
-            time_text = self.small_font.render(f"残り: {remaining:.1f}秒", True, (100, 100, 100))
-            self.screen.blit(time_text, (10, 10))
+
 
             pygame.display.flip()
             self.clock.tick(FPS)
