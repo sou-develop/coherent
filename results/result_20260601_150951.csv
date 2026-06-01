@@ -1,0 +1,2 @@
+timestamp,digit_sequence,user_input,correct_count,total_digits,accuracy,response_time_ms,coherence,coherent_duration_sec,digit_display_time_ms
+2026-06-01 15:09:49,131989860571963,98765432345678,0,15,0.0,30514,0.5,8.0,1000

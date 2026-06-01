@@ -470,19 +470,14 @@ class CoherentMotionExperiment:
     # 結果をCSVに保存
     # --------------------------------------------------------
     def save_results(self):
-        """結果をCSVファイルに保存（時間ベースのファイル名でresultsフォルダに）"""
-        # resultsフォルダを作成
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        results_dir = os.path.join(base_dir, "results")
-        os.makedirs(results_dir, exist_ok=True)
+        """結果をCSVファイルに保存"""
+        filename = "experiment_results.csv"
+        file_exists = os.path.exists(filename)
 
-        # 時間ベースのファイル名
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.join(results_dir, f"result_{timestamp}.csv")
-
-        with open(filename, "w", newline="", encoding="utf-8") as f:
+        with open(filename, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=self.results.keys())
-            writer.writeheader()
+            if not file_exists:
+                writer.writeheader()
             writer.writerow(self.results)
 
         print(f"結果を {filename} に保存しました。")
