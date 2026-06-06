@@ -1,0 +1,6 @@
+{
+    "coherent_duration_sec": 8.0,
+    "coherence_levels": [0.0, 0.05, 1.0],
+    "num_dots": 200,
+    "dot_speed": 3.0
+}
