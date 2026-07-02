@@ -2,9 +2,13 @@
 コヒーレント運動実験プログラム
 
 実験フロー:
-1. 15桁の数字を1つずつ画面中央に高速表示（RSVP）
-2. コヒーレント運動（ランダムドットキネマトグラム）を8秒間表示
-3. 記憶した数字の入力画面を表示
+1. 15個の数字を1つずつ画面中央に高速表示（RSVP）
+2. コヒーレント運動（動的ランダムドット: DRD）を表示
+3. 記憶した数字の入力画面を表示（15マス）
+
+試行構成:
+- 4方向 × 5コヒーレンス率 × 各20回 = 計400試行
+- 順序はランダム、フィードバックなし
 
 使い方:
   python3 experiment.py
@@ -31,42 +35,58 @@ def _load_json(filename):
             return json.load(f)
     return {}
 
-_config = _load_json("config.json")                # 数字表示の設定
-_coherent_config = _load_json("coherent_config.json")  # コヒーレント運動の設定
+_config = _load_json("config.json")
 
 # ============================================================
-# 設定パラメータ
+# 設定パラメータ（config.json から読み込み）
 # ============================================================
 
 # --- 画面設定 ---
-SCREEN_WIDTH = 1200
-SCREEN_HEIGHT = 800
-FULLSCREEN = False  # True にするとフルスクリーン
-BG_COLOR = (30, 30, 30)  # 背景色（ダークグレー）
+_display = _config.get("display", {})
+SCREEN_WIDTH = _display.get("screen_width", 1920)
+SCREEN_HEIGHT = _display.get("screen_height", 1080)
+FULLSCREEN = _display.get("fullscreen", False)
+FPS = _display.get("fps", 60)
+PIXELS_PER_DEGREE = _display.get("pixels_per_degree", 32)
 
-# --- 数字表示（RSVP）設定（config.json）---
-NUM_DIGITS = _config.get("num_digits", 15)
-DIGIT_DISPLAY_TIME_MS = _config.get("digit_display_time_ms", 1500)
-DIGIT_BLANK_TIME_MS = _config.get("digit_blank_time_ms", 100)
-DIGIT_FONT_SIZE = 120  # 数字のフォントサイズ
-DIGIT_COLOR = (255, 255, 255)  # 数字の色（白）
+# --- RSVP設定 ---
+_rsvp = _config.get("rsvp", {})
+NUM_DIGITS = _rsvp.get("num_digits", 15)
+DIGIT_DISPLAY_TIME_MS = _rsvp.get("digit_display_time_ms", 75)
+DIGIT_BLANK_TIME_MS = _rsvp.get("digit_blank_time_ms", 45)
+DIGIT_FONT_SIZE = _rsvp.get("digit_font_size", 120)
+BG_DIAMETER_DEG = _rsvp.get("background_diameter_deg", 10)
+BG_LUMINANCE_RGB = tuple(_rsvp.get("background_luminance_rgb", [5, 5, 5]))
+FRAME_DIAMETER_DEG = _rsvp.get("frame_diameter_deg", 1)
+FRAME_LUMINANCE_RGB = tuple(_rsvp.get("frame_luminance_rgb", [100, 100, 100]))
+DIGIT_LUMINANCE_RGB = tuple(_rsvp.get("digit_luminance_rgb", [165, 165, 165]))
 
-# --- コヒーレント運動設定（coherent_config.json）---
-COHERENT_DURATION_SEC = _coherent_config.get("coherent_duration_sec", 8.0)
-NUM_DOTS = _coherent_config.get("num_dots", 200)
-DOT_RADIUS = 3  # ドットの半径（ピクセル）
-DOT_COLOR = (255, 255, 255)  # ドットの色（白）
-DOT_SPEED = _coherent_config.get("dot_speed", 3.0)
-COHERENCE_LEVELS = _coherent_config.get("coherence_levels", [0.0, 0.05, 1.0])  # 毎回ランダムに選択
-DOT_LIFETIME = 0  # ドットの寿命（0で無限 = リロードしない）
+# --- DRD設定 ---
+_drd = _config.get("drd", {})
+DRD_DURATION_SEC = _drd.get("duration_sec", 8.0)
+DOT_DENSITY_PER_DEG2 = _drd.get("dot_density_per_deg2", 1.27)
+DOT_SPEED_DEG_PER_SEC = _drd.get("dot_speed_deg_per_sec", 14.2)
+DOT_RADIUS = _drd.get("dot_radius", 3)
+DOT_COLOR = tuple(_drd.get("dot_color", [255, 255, 255]))
+SIGNAL_DIRECTIONS_DEG = _drd.get("signal_directions_deg", [70, 160, 250, 340])
+COHERENCE_LEVELS = _drd.get("coherence_levels", [0.0, 0.05, 0.10, 0.20, 0.50])
+REPETITIONS = _drd.get("repetitions_per_condition", 20)
 
 # --- 入力画面設定 ---
-INPUT_FONT_SIZE = 48
-INPUT_COLOR = (255, 255, 255)
-CURSOR_BLINK_MS = 500  # カーソル点滅間隔
+_input_cfg = _config.get("input", {})
+INPUT_FONT_SIZE = _input_cfg.get("font_size", 48)
+INPUT_COLOR = tuple(_input_cfg.get("color", [255, 255, 255]))
+CURSOR_BLINK_MS = _input_cfg.get("cursor_blink_ms", 500)
 
-# --- フレームレート ---
-FPS = 60
+# --- 計算値 ---
+BG_RADIUS_PX = int(BG_DIAMETER_DEG / 2 * PIXELS_PER_DEGREE)
+FRAME_RADIUS_PX = int(FRAME_DIAMETER_DEG / 2 * PIXELS_PER_DEGREE)
+DRD_APERTURE_RADIUS_PX = BG_RADIUS_PX
+DRD_AREA_DEG2 = math.pi * (BG_DIAMETER_DEG / 2) ** 2
+NUM_DOTS = int(DOT_DENSITY_PER_DEG2 * DRD_AREA_DEG2)
+DOT_SPEED = DOT_SPEED_DEG_PER_SEC * PIXELS_PER_DEGREE / FPS
+TOTAL_TRIALS = len(SIGNAL_DIRECTIONS_DEG) * len(COHERENCE_LEVELS) * REPETITIONS
+SCREEN_BG_COLOR = (0, 0, 0)
 
 
 # ============================================================
@@ -83,12 +103,23 @@ def deg_to_rad(deg):
     return deg * math.pi / 180.0
 
 
+def generate_trial_list():
+    """全試行の条件リストを生成してランダムシャッフル"""
+    trials = []
+    for direction in SIGNAL_DIRECTIONS_DEG:
+        for coherence in COHERENCE_LEVELS:
+            for _ in range(REPETITIONS):
+                trials.append({"direction_deg": direction, "coherence": coherence})
+    random.shuffle(trials)
+    return trials
+
+
 # ============================================================
-# ドットクラス（コヒーレント運動用）
+# ドットクラス（DRD用）
 # ============================================================
 
 class Dot:
-    """ランダムドットキネマトグラムの個々のドット"""
+    """動的ランダムドットの個々のドット"""
 
     def __init__(self, cx, cy, aperture_radius, speed, coherent_direction_rad, is_coherent):
         self.cx = cx
@@ -97,12 +128,7 @@ class Dot:
         self.speed = speed
         self.coherent_direction_rad = coherent_direction_rad
         self.is_coherent = is_coherent
-        self.lifetime = 0
-
-        # ランダムな初期位置（円形アパーチャ内）
         self._randomize_position()
-
-        # 方向を決定
         if self.is_coherent:
             self.direction = self.coherent_direction_rad
         else:
@@ -119,22 +145,28 @@ class Dot:
         """ドットを移動させる"""
         self.x += self.speed * math.cos(self.direction)
         self.y += self.speed * math.sin(self.direction)
-        self.lifetime += 1
-
-        # アパーチャの外に出たら反対側にラップアラウンド
         dx = self.x - self.cx
         dy = self.y - self.cy
         dist = math.sqrt(dx * dx + dy * dy)
 
         if dist > self.aperture_radius:
-            # 反対側に配置
-            self.x = self.cx - dx * 0.9
-            self.y = self.cy - dy * 0.9
-            # アパーチャ内に収める
-            dx2 = self.x - self.cx
-            dy2 = self.y - self.cy
-            dist2 = math.sqrt(dx2 * dx2 + dy2 * dy2)
-            if dist2 > self.aperture_radius:
+            # 運動方向の単位ベクトル
+            d_cos = math.cos(self.direction)
+            d_sin = math.sin(self.direction)
+            # 運動方向への射影（縦成分）
+            proj = dx * d_cos + dy * d_sin
+            # 運動方向に垂直な成分（横成分）
+            perp_x = dx - proj * d_cos
+            perp_y = dy - proj * d_sin
+            perp_dist_sq = perp_x * perp_x + perp_y * perp_y
+
+            if perp_dist_sq < self.aperture_radius * self.aperture_radius:
+                # 横成分を保ったまま、反対側の縁から再入
+                along = math.sqrt(self.aperture_radius * self.aperture_radius - perp_dist_sq)
+                self.x = self.cx + perp_x - along * d_cos
+                self.y = self.cy + perp_y - along * d_sin
+            else:
+                # 横成分がアパーチャを超える場合（稀）はランダム配置
                 self._randomize_position()
 
     def draw(self, surface):
@@ -151,7 +183,6 @@ class CoherentMotionExperiment:
 
     def __init__(self):
         pygame.init()
-
         if FULLSCREEN:
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
             self.width, self.height = self.screen.get_size()
@@ -161,43 +192,39 @@ class CoherentMotionExperiment:
             self.height = SCREEN_HEIGHT
 
         pygame.display.set_caption("コヒーレント運動実験")
+        pygame.mouse.set_visible(False)
         self.clock = pygame.time.Clock()
 
-        # フォントの初期化（フォントファイルを直接指定してクロスプラットフォーム対応）
+        # フォントの初期化（クロスプラットフォーム対応）
         FONT_FILE_CANDIDATES = [
-            # macOS
             "/System/Library/Fonts/Hiragino Sans GB.ttc",
             "/Library/Fonts/Arial Unicode.ttf",
             "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
             "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
-            # Windows
             "C:/Windows/Fonts/yugothic.ttf",
             "C:/Windows/Fonts/YuGothM.ttc",
             "C:/Windows/Fonts/meiryo.ttc",
             "C:/Windows/Fonts/msgothic.ttc",
-            # Linux
             "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
             "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
         ]
 
-        def find_font_path():
-            for path in FONT_FILE_CANDIDATES:
-                if os.path.exists(path):
-                    return path
-            return None
-
-        font_path = find_font_path()
+        font_path = None
+        for path in FONT_FILE_CANDIDATES:
+            if os.path.exists(path):
+                font_path = path
+                break
 
         def get_font(size):
             if font_path:
                 try:
                     return pygame.font.Font(font_path, size)
-                except:
+                except Exception:
                     pass
             return pygame.font.Font(None, size)
 
         self.digit_font = get_font(DIGIT_FONT_SIZE)
-        self.fixation_font = get_font(36)  # 注視点用の小さいフォント
+        self.fixation_font = get_font(36)
         self.input_font = get_font(INPUT_FONT_SIZE)
         self.label_font = get_font(32)
         self.small_font = get_font(24)
@@ -205,12 +232,18 @@ class CoherentMotionExperiment:
 
         # 実験データ
         self.digit_sequence = []
-        self.user_input = ""
-        self.results = {}
-        self.all_results = []  # 全試行の結果を蓄積
-        self.response_time_ms = 0  # 反応時間（ミリ秒）
-        self.subject_no = ""  # 被験者番号
+        self.user_responses = []
+        self.all_results = []
+        self.response_time_ms = 0
+        self.subject_no = ""
+        self.trial_list = []
+        self.current_trial_idx = 0
+        self.current_coherence = 0.0
+        self.current_direction_deg = 0.0
 
+    # --------------------------------------------------------
+    # ヘルパー
+    # --------------------------------------------------------
     def handle_quit_events(self):
         """終了イベントを処理"""
         for event in pygame.event.get():
@@ -224,19 +257,21 @@ class CoherentMotionExperiment:
                 return event
         return None
 
-    def wait_for_key(self):
-        """キー入力を待つ"""
-        while True:
-            event = self.handle_quit_events()
-            if event and event.type == pygame.KEYDOWN:
-                return event
-            self.clock.tick(FPS)
-
     def draw_text_centered(self, text, font, color, y_offset=0):
         """テキストを画面中央に描画"""
         surface = font.render(text, True, color)
         rect = surface.get_rect(center=(self.width // 2, self.height // 2 + y_offset))
         self.screen.blit(surface, rect)
+
+    def draw_bg_circle(self):
+        """直径10度の黒い背景円"""
+        pygame.draw.circle(self.screen, BG_LUMINANCE_RGB,
+                           (self.width // 2, self.height // 2), BG_RADIUS_PX)
+
+    def draw_frame_circle(self):
+        """直径1度の暗灰色の提示枠（輪郭のみ）"""
+        pygame.draw.circle(self.screen, FRAME_LUMINANCE_RGB,
+                           (self.width // 2, self.height // 2), FRAME_RADIUS_PX, 1)
 
     # --------------------------------------------------------
     # 被験者番号入力画面
@@ -260,7 +295,7 @@ class CoherentMotionExperiment:
                         return
                     elif event.key == pygame.K_BACKSPACE:
                         self.subject_no = self.subject_no[:-1]
-                    elif event.unicode.isdigit():
+                    elif event.unicode in '0123456789':
                         self.subject_no += event.unicode
 
             now = pygame.time.get_ticks()
@@ -268,42 +303,34 @@ class CoherentMotionExperiment:
                 cursor_visible = not cursor_visible
                 cursor_timer = now
 
-            self.screen.fill(BG_COLOR)
-            self.draw_text_centered("被験者番号を入力してください", self.label_font, (100, 200, 255), -80)
+            self.screen.fill(SCREEN_BG_COLOR)
+            self.draw_text_centered("被験者番号を入力してください", self.label_font,
+                                    (255, 255, 255), -80)
 
-            # 入力ボックス
-            box_width = 300
-            box_height = 60
-            box_x = (self.width - box_width) // 2
-            box_y = self.height // 2 - box_height // 2
-            pygame.draw.rect(self.screen, (50, 50, 60), (box_x, box_y, box_width, box_height), border_radius=8)
-            pygame.draw.rect(self.screen, (100, 160, 255), (box_x, box_y, box_width, box_height), 2, border_radius=8)
+            bw, bh = 300, 60
+            bx = (self.width - bw) // 2
+            by = self.height // 2 - bh // 2
+            pygame.draw.rect(self.screen, (255, 255, 255),
+                             (bx, by, bw, bh), 1)
 
-            display_text = self.subject_no
-            if cursor_visible:
-                display_text += "|"
-            text_surface = self.input_font.render(display_text, True, INPUT_COLOR)
-            text_rect = text_surface.get_rect(center=(self.width // 2, box_y + box_height // 2))
-            self.screen.blit(text_surface, text_rect)
-
-            self.draw_text_centered("Enterキーで確定", self.small_font, (255, 220, 100), 80)
-
+            disp = self.subject_no + ("|" if cursor_visible else "")
+            ts = self.input_font.render(disp, True, (255, 255, 255))
+            self.screen.blit(ts, ts.get_rect(center=(self.width // 2, by + bh // 2)))
+            self.draw_text_centered("Enterキーで確定", self.small_font,
+                                    (255, 255, 255), 80)
             pygame.display.flip()
             self.clock.tick(FPS)
 
     # --------------------------------------------------------
-    # フェーズ 0: 開始画面
+    # 開始画面
     # --------------------------------------------------------
     def phase_start_screen(self):
-        """開始画面を表示（スペースキーで開始のみ）"""
-        self.screen.fill(BG_COLOR)
-
-        # スペースキーで開始の案内のみ表示
-        self.draw_text_centered("スペースキーで開始", self.label_font, (255, 220, 100), 0)
-
+        """開始画面（スペースキーで開始）"""
+        self.screen.fill(SCREEN_BG_COLOR)
+        self.draw_text_centered("スペースキーで開始", self.label_font,
+                                (255, 255, 255), 0)
         pygame.display.flip()
 
-        # スペースキーを待つ
         while True:
             event = self.handle_quit_events()
             if event and event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -314,106 +341,91 @@ class CoherentMotionExperiment:
     # フェーズ 1: 数字のRSVP表示
     # --------------------------------------------------------
     def phase_digit_display(self):
-        """15桁の数字を1つずつ高速表示する"""
+        """15個の数字を高速表示（背景円＋提示枠付き）"""
         self.digit_sequence = generate_digit_sequence(NUM_DIGITS)
 
-        # 開始前の注視点表示（1秒）
-        self.screen.fill(BG_COLOR)
-        self.draw_text_centered("+", self.fixation_font, (150, 150, 150))
+        # 注視点（1秒）: 黒背景に点のみ
+        self.screen.fill(SCREEN_BG_COLOR)
+        pygame.draw.circle(self.screen, (255, 255, 255),
+                           (self.width // 2, self.height // 2), 3)
         pygame.display.flip()
         pygame.time.wait(1000)
 
-        # 各数字を順番に表示
         for digit in self.digit_sequence:
-            # 数字を表示
-            self.screen.fill(BG_COLOR)
-            self.draw_text_centered(str(digit), self.digit_font, DIGIT_COLOR)
+            # 数字表示 (背景は純黒にして薄い丸が出ないように)
+            self.screen.fill(SCREEN_BG_COLOR)
+            self.draw_text_centered(str(digit), self.digit_font, DIGIT_LUMINANCE_RGB)
             pygame.display.flip()
 
-            # 表示時間分待機
-            start_time = pygame.time.get_ticks()
-            while pygame.time.get_ticks() - start_time < DIGIT_DISPLAY_TIME_MS:
+            t0 = pygame.time.get_ticks()
+            while pygame.time.get_ticks() - t0 < DIGIT_DISPLAY_TIME_MS:
                 self.handle_quit_events()
                 self.clock.tick(FPS)
 
-            # ブランク画面
-            self.screen.fill(BG_COLOR)
+            # ブランク: 黒のみ（余計なマークなし）
+            self.screen.fill(SCREEN_BG_COLOR)
             pygame.display.flip()
 
-            start_time = pygame.time.get_ticks()
-            while pygame.time.get_ticks() - start_time < DIGIT_BLANK_TIME_MS:
+            t0 = pygame.time.get_ticks()
+            while pygame.time.get_ticks() - t0 < DIGIT_BLANK_TIME_MS:
                 self.handle_quit_events()
                 self.clock.tick(FPS)
 
-        # 数字表示後の短い空白
-        self.screen.fill(BG_COLOR)
+        # 表示後の空白
+        self.screen.fill(SCREEN_BG_COLOR)
         pygame.display.flip()
         pygame.time.wait(500)
 
     # --------------------------------------------------------
-    # フェーズ 2: コヒーレント運動表示
+    # フェーズ 2: DRD表示
     # --------------------------------------------------------
     def phase_coherent_motion(self):
-        """コヒーレント運動（ランダムドットキネマトグラム）を画面全体に表示する"""
-        cx = self.width // 2
-        cy = self.height // 2
+        """DRDを背景円内に表示"""
+        cx, cy = self.width // 2, self.height // 2
+        trial = self.trial_list[self.current_trial_idx]
+        coherence = trial["coherence"]
+        direction_deg = trial["direction_deg"]
+        self.current_coherence = coherence
+        self.current_direction_deg = direction_deg
+        coherent_dir_rad = deg_to_rad(direction_deg)
 
-        # 毎回ランダムに方向とコヒーレンス率を決定
-        self.current_coherence = random.choice(COHERENCE_LEVELS)
-        self.current_direction_deg = random.uniform(0, 360)
-        coherent_dir_rad = deg_to_rad(self.current_direction_deg)
-
-        # 画面全体をカバーする半径（対角線の半分）
-        aperture_radius = int(math.sqrt(self.width ** 2 + self.height ** 2) / 2)
-
-        # ドットを生成
         dots = []
+        num_coherent = int(NUM_DOTS * coherence)
         for i in range(NUM_DOTS):
-            is_coherent = (i < int(NUM_DOTS * self.current_coherence))
-            dot = Dot(cx, cy, aperture_radius, DOT_SPEED, coherent_dir_rad, is_coherent)
-            dots.append(dot)
-
-        # シャッフルしてコヒーレント/ランダムの区別を見えなくする
+            is_coherent = (i < num_coherent)
+            dots.append(Dot(cx, cy, DRD_APERTURE_RADIUS_PX, DOT_SPEED,
+                            coherent_dir_rad, is_coherent))
         random.shuffle(dots)
 
-        start_time = pygame.time.get_ticks()
-        duration_ms = int(COHERENT_DURATION_SEC * 1000)
+        t0 = pygame.time.get_ticks()
+        duration_ms = int(DRD_DURATION_SEC * 1000)
 
-        while True:
-            elapsed = pygame.time.get_ticks() - start_time
-            if elapsed >= duration_ms:
-                break
-
+        while pygame.time.get_ticks() - t0 < duration_ms:
             self.handle_quit_events()
-
-            # 背景描画
-            self.screen.fill(BG_COLOR)
-
-            # ドットの更新と描画（枠なし）
+            self.screen.fill(SCREEN_BG_COLOR)
+            self.draw_bg_circle()
             for dot in dots:
                 dot.update()
                 dot.draw(self.screen)
-
             pygame.display.flip()
             self.clock.tick(FPS)
 
-        # 終了後の短い空白
-        self.screen.fill(BG_COLOR)
+        self.screen.fill(SCREEN_BG_COLOR)
         pygame.display.flip()
         pygame.time.wait(500)
 
     # --------------------------------------------------------
-    # フェーズ 3: 数字入力画面
+    # フェーズ 3: 数字入力画面（15マスグリッド）
     # --------------------------------------------------------
     def phase_input(self):
-        """ユーザーに覚えた数字を入力させる（反応時間も計測）"""
-        self.user_input = ""
+        """15マスに数字/スペースを入力させる"""
+        self.user_responses = [None] * NUM_DIGITS
+        pos = 0
         cursor_visible = True
         cursor_timer = pygame.time.get_ticks()
-        input_start_time = pygame.time.get_ticks()  # 反応時間計測開始
+        input_start = pygame.time.get_ticks()
 
         while True:
-            # イベント処理
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -422,68 +434,86 @@ class CoherentMotionExperiment:
                     if event.key == pygame.K_ESCAPE:
                         pygame.quit()
                         sys.exit()
-                    elif event.key == pygame.K_RETURN:
-                        # 入力確定 — 反応時間を記録
-                        self.response_time_ms = pygame.time.get_ticks() - input_start_time
-                        return
                     elif event.key == pygame.K_BACKSPACE:
-                        self.user_input = self.user_input[:-1]
-                    elif event.unicode.isdigit():
-                        if len(self.user_input) < NUM_DIGITS:
-                            self.user_input += event.unicode
+                        if pos > 0:
+                            pos -= 1
+                            self.user_responses[pos] = None
+                    elif event.key == pygame.K_SPACE:
+                        if pos < NUM_DIGITS:
+                            self.user_responses[pos] = " "
+                            pos += 1
+                    elif event.unicode in '0123456789':
+                        if pos < NUM_DIGITS:
+                            self.user_responses[pos] = event.unicode
+                            pos += 1
+                    elif event.key == pygame.K_RETURN:
+                        if pos == NUM_DIGITS:
+                            self.response_time_ms = pygame.time.get_ticks() - input_start
+                            return
 
-            # カーソル点滅
             now = pygame.time.get_ticks()
             if now - cursor_timer >= CURSOR_BLINK_MS:
                 cursor_visible = not cursor_visible
                 cursor_timer = now
 
-            # 描画
-            self.screen.fill(BG_COLOR)
+            # --- 描画 ---
+            self.screen.fill(SCREEN_BG_COLOR)
+            self.draw_text_centered("覚えた数字を入力してください", self.label_font,
+                                    (100, 200, 255), -150)
+            self.draw_text_centered(
+                "数字キー: 入力 / スペース: スキップ / BS: 削除",
+                self.small_font, (150, 150, 150), -110)
 
-            # タイトル
-            self.draw_text_centered("覚えた数字を入力してください", self.label_font, (100, 200, 255), -150)
+            # 15マスグリッド
+            cell = 50
+            gap = 8
+            tw = NUM_DIGITS * cell + (NUM_DIGITS - 1) * gap
+            sx = (self.width - tw) // 2
+            gy = self.height // 2 - cell // 2
 
-            # 入力ボックスの描画
-            box_width = 600
-            box_height = 70
-            box_x = (self.width - box_width) // 2
-            box_y = self.height // 2 - box_height // 2
+            for i in range(NUM_DIGITS):
+                cx = sx + i * (cell + gap)
+                # セル描画 (純白黒スタイル)
+                if i == pos:
+                    bd_c = (255, 255, 255) if cursor_visible else (0, 0, 0)
+                    width_px = 2
+                else:
+                    bd_c = (255, 255, 255)
+                    width_px = 1
 
-            # ボックス背景
-            pygame.draw.rect(self.screen, (50, 50, 60), (box_x, box_y, box_width, box_height), border_radius=8)
-            # ボックス枠
-            pygame.draw.rect(self.screen, (100, 160, 255), (box_x, box_y, box_width, box_height), 2, border_radius=8)
+                pygame.draw.rect(self.screen, bd_c, (cx, gy, cell, cell), width_px)
 
-            # 入力テキスト
-            display_text = self.user_input
-            if cursor_visible:
-                display_text += "|"
-            text_surface = self.input_font.render(display_text, True, INPUT_COLOR)
-            text_rect = text_surface.get_rect(midleft=(box_x + 20, box_y + box_height // 2))
-            self.screen.blit(text_surface, text_rect)
-
-            # 入力桁数の表示
-            count_text = f"{len(self.user_input)} / {NUM_DIGITS} 桁"
-            count_surface = self.small_font.render(count_text, True, (150, 150, 150))
-            count_rect = count_surface.get_rect(center=(self.width // 2, box_y + box_height + 30))
-            self.screen.blit(count_surface, count_rect)
-
-            # 確定ボタンの案内
-            self.draw_text_centered("Enterキーで確定", self.small_font, (255, 220, 100), 120)
+                # セル内容
+                val = self.user_responses[i]
+                if val is not None:
+                    if val == " ":
+                        txt = self.input_font.render("-", True, (255, 255, 255))
+                    else:
+                        txt = self.input_font.render(val, True, (255, 255, 255))
+                    self.screen.blit(txt, txt.get_rect(
+                        center=(cx + cell // 2, gy + cell // 2)))
+            # 全て入力されたら、「Enterキーで確定」を表示
+            if pos == NUM_DIGITS:
+                self.draw_text_centered("Enterキーで確定", self.small_font, (255, 255, 255), cell + 40)
 
             pygame.display.flip()
             self.clock.tick(FPS)
 
     # --------------------------------------------------------
-    # フェーズ 4: 結果表示
+    # 結果集計（フィードバックなし）
     # --------------------------------------------------------
-    def phase_results(self):
-        """結果を集計し、リトライ/終了の案内のみ表示する"""
+    def collect_results(self):
+        """試行結果を記録する（画面表示なし）"""
         correct_str = "".join(map(str, self.digit_sequence))
-        input_str = self.user_input
+        # 入力をまとめる（スキップは空白）
+        input_chars = []
+        for r in self.user_responses:
+            if r is None or r == " ":
+                input_chars.append(" ")
+            else:
+                input_chars.append(r)
+        input_str = "".join(input_chars)
 
-        # 正答数を計算
         correct_count = 0
         for i in range(min(len(correct_str), len(input_str))):
             if correct_str[i] == input_str[i]:
@@ -491,8 +521,9 @@ class CoherentMotionExperiment:
 
         accuracy = (correct_count / NUM_DIGITS) * 100 if NUM_DIGITS > 0 else 0
 
-        # 結果を保存
-        self.results = {
+        result = {
+            "subject_no": self.subject_no,
+            "trial": self.current_trial_idx + 1,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "digit_sequence": correct_str,
             "user_input": input_str,
@@ -501,34 +532,18 @@ class CoherentMotionExperiment:
             "accuracy": accuracy,
             "response_time_ms": self.response_time_ms,
             "coherence": self.current_coherence,
-            "coherent_direction_deg": round(self.current_direction_deg, 1),
-            "coherent_duration_sec": COHERENT_DURATION_SEC,
+            "direction_deg": self.current_direction_deg,
+            "drd_duration_sec": DRD_DURATION_SEC,
             "digit_display_time_ms": DIGIT_DISPLAY_TIME_MS,
+            "digit_blank_time_ms": DIGIT_BLANK_TIME_MS,
         }
-
-        # フィードバックなし — 操作案内のみ表示
-        self.screen.fill(BG_COLOR)
-        self.draw_text_centered("スペースキーでもう一度 / Escキーで終了", self.label_font, (255, 220, 100), 0)
-        pygame.display.flip()
-
-        # キー待ち
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        return False  # 終了
-                    elif event.key == pygame.K_SPACE:
-                        return True  # もう一度
-            self.clock.tick(FPS)
+        self.all_results.append(result)
 
     # --------------------------------------------------------
     # 結果をCSVに保存
     # --------------------------------------------------------
     def save_results(self):
-        """全試行の結果をまとめてCSVファイルに保存（results/フォルダに被験者No+時間）"""
+        """全試行の結果をCSVファイルに保存"""
         if not self.all_results:
             return
 
@@ -537,7 +552,8 @@ class CoherentMotionExperiment:
         os.makedirs(results_dir, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.join(results_dir, f"subject{self.subject_no}_{timestamp}.csv")
+        filename = os.path.join(results_dir,
+                                f"subject{self.subject_no}_{timestamp}.csv")
 
         with open(filename, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=self.all_results[0].keys())
@@ -552,32 +568,31 @@ class CoherentMotionExperiment:
     # --------------------------------------------------------
     def run(self):
         """実験全体を実行する"""
-        # 最初に被験者番号を入力
+        # 被験者番号入力
         self.phase_subject_input()
 
-        while True:
+        # 全試行条件を生成
+        self.trial_list = generate_trial_list()
+
+        for idx in range(TOTAL_TRIALS):
+            self.current_trial_idx = idx
+
             # 開始画面
             self.phase_start_screen()
 
-            # フェーズ1: 数字表示
+            # フェーズ1: RSVP数字表示
             self.phase_digit_display()
 
-            # フェーズ2: コヒーレント運動
+            # フェーズ2: DRD表示
             self.phase_coherent_motion()
 
             # フェーズ3: 数字入力
             self.phase_input()
 
-            # フェーズ4: 結果集計
-            repeat = self.phase_results()
+            # 結果集計（フィードバックなし）
+            self.collect_results()
 
-            # 結果をリストに蓄積
-            self.all_results.append(self.results)
-
-            if not repeat:
-                break
-
-        # 全試行終了後にまとめてCSV保存
+        # 全試行終了後にCSV保存
         self.save_results()
 
         pygame.quit()

@@ -1,5 +1,67 @@
 {
-    "num_digits": 15,
-    "digit_display_time_ms": 1000,
-    "digit_blank_time_ms": 100
+    "display": {
+        "screen_width": 1920,
+        "screen_height": 1080,
+        "fullscreen": true,
+        "fps": 60,
+        "pixels_per_degree": 32,
+        "viewing_distance_cm": 57
+    },
+    "rsvp": {
+        "num_digits": 13,
+        "digit_display_time_ms": 2000,
+        "digit_blank_time_ms": 500,
+        "digit_font_size": 120,
+        "background_diameter_deg": 10,
+        "background_luminance_rgb": [
+            15,
+            15,
+            15
+        ],
+        "frame_diameter_deg": 1,
+        "frame_luminance_rgb": [
+            180,
+            180,
+            180
+        ],
+        "digit_luminance_rgb": [
+            255,
+            255,
+            255
+        ]
+    },
+    "drd": {
+        "duration_sec": 8.0,
+        "dot_density_per_deg2": 1.27,
+        "dot_speed_deg_per_sec": 14.2,
+        "dot_radius": 3,
+        "dot_color": [
+            255,
+            255,
+            255
+        ],
+        "signal_directions_deg": [
+            70,
+            160,
+            250,
+            340
+        ],
+        "coherence_levels": [
+            0.0,
+            0.05,
+            0.10,
+            0.20,
+            0.50
+        ],
+        "repetitions_per_condition": 20
+    },
+    "input": {
+        "font_size": 48,
+        "color": [
+            255,
+            255,
+            255
+        ],
+        "cursor_blink_ms": 500
+    }
 }
