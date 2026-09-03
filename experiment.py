@@ -130,7 +130,8 @@ class Dot:
         self.speed = speed
         self.coherent_direction_rad = coherent_direction_rad
         self._randomize_position()
-        self.direction = random.uniform(0, 2 * math.pi)
+        # ノイズ時に使う固有のランダム方向（直線運動）
+        self.noise_direction = random.uniform(0, 2 * math.pi)
 
     def _randomize_position(self):
         """円形アパーチャ内のランダムな位置に配置"""
@@ -139,42 +140,51 @@ class Dot:
         self.x = self.cx + r * math.cos(angle)
         self.y = self.cy + r * math.sin(angle)
 
-    def update(self, is_coherent):
-        """ドットを移動させる"""
-        if is_coherent:
-            self.direction = self.coherent_direction_rad
-        else:
-            # 先行研究に基づき、ノイズドットは毎フレームランダムな方向に動く
-            self.direction = random.uniform(0, 2 * math.pi)
+    def _wrap_around(self, direction):
+        """アパーチャ端に達したドットを、移動方向の反対側の端から再入場させる"""
+        dx = self.x - self.cx
+        dy = self.y - self.cy
+        d_cos = math.cos(direction)
+        d_sin = math.sin(direction)
+        # 移動方向への射影（縦成分）
+        proj = dx * d_cos + dy * d_sin
+        # 移動方向に垂直な成分（横成分）
+        perp_x = dx - proj * d_cos
+        perp_y = dy - proj * d_sin
+        perp_dist_sq = perp_x * perp_x + perp_y * perp_y
 
-        self.x += self.speed * math.cos(self.direction)
-        self.y += self.speed * math.sin(self.direction)
+        if perp_dist_sq < self.aperture_radius * self.aperture_radius:
+            # 横成分を保ったまま、反対側の縁から再入
+            along = math.sqrt(self.aperture_radius * self.aperture_radius - perp_dist_sq)
+            self.x = self.cx + perp_x - along * d_cos
+            self.y = self.cy + perp_y - along * d_sin
+        else:
+            self._randomize_position()
+
+    def update(self, is_coherent):
+        """ドットを移動させる
+
+        シグナルドット: 信号方向に一直線に移動
+        ノイズドット:   固有のランダム方向に一直線に移動
+        どちらもアパーチャ端に達したら反対側から再入場する。
+        """
+        if is_coherent:
+            direction = self.coherent_direction_rad
+        else:
+            direction = self.noise_direction
+
+        self.x += self.speed * math.cos(direction)
+        self.y += self.speed * math.sin(direction)
+
         dx = self.x - self.cx
         dy = self.y - self.cy
         dist = math.sqrt(dx * dx + dy * dy)
 
         if dist > self.aperture_radius:
-            if is_coherent:
-                # 運動方向の単位ベクトル
-                d_cos = math.cos(self.direction)
-                d_sin = math.sin(self.direction)
-                # 運動方向への射影（縦成分）
-                proj = dx * d_cos + dy * d_sin
-                # 運動方向に垂直な成分（横成分）
-                perp_x = dx - proj * d_cos
-                perp_y = dy - proj * d_sin
-                perp_dist_sq = perp_x * perp_x + perp_y * perp_y
-
-                if perp_dist_sq < self.aperture_radius * self.aperture_radius:
-                    # 横成分を保ったまま、反対側の縁から再入
-                    along = math.sqrt(self.aperture_radius * self.aperture_radius - perp_dist_sq)
-                    self.x = self.cx + perp_x - along * d_cos
-                    self.y = self.cy + perp_y - along * d_sin
-                else:
-                    self._randomize_position()
-            else:
-                # ノイズの場合は境界を超えたらランダム配置
-                self._randomize_position()
+            self._wrap_around(direction)
+            # ノイズドットは再入場時に新しいランダム方向を割り当てる
+            if not is_coherent:
+                self.noise_direction = random.uniform(0, 2 * math.pi)
 
     def draw(self, surface):
         """ドットを描画"""

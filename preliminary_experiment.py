@@ -286,7 +286,7 @@ class PreliminaryExperiment:
                             self.user_responses[pos] = event.unicode
                             pos += 1
                     elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                        if pos == input_slots:
+                        if pos > 0:
                             self.response_time_ms = pygame.time.get_ticks() - input_start
                             return
 
@@ -324,7 +324,7 @@ class PreliminaryExperiment:
                     self.screen.blit(txt, txt.get_rect(
                         center=(cx + cell // 2, gy + cell // 2)))
 
-            if pos == input_slots:
+            if pos > 0:
                 self.draw_text_centered("Enterキーで確定", self.small_font, (255, 255, 255), cell + 40)
 
             pygame.display.flip()
