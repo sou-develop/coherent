@@ -364,6 +364,10 @@ class CoherentMotionExperiment:
             dots.append(Dot(cx, cy, DRD_APERTURE_RADIUS_PX, DOT_SPEED,
                             coherent_dir_rad))
 
+        # シグナル/ノイズの割り当てを固定（最初のnum_coherent個がシグナル）
+        random.shuffle(dots)
+        is_coherent_flags = [i < num_coherent for i in range(NUM_DOTS)]
+
         t0 = pygame.time.get_ticks()
         duration_ms = int(DRD_DURATION_SEC * 1000)
 
@@ -371,12 +375,9 @@ class CoherentMotionExperiment:
             self.handle_quit_events()
             self.screen.fill(SCREEN_BG_COLOR)
             self.draw_bg_circle()
-            
-            # 先行研究に基づき、毎フレームランダムにシグナルドットを選び直す
-            random.shuffle(dots)
+
             for i, dot in enumerate(dots):
-                is_coherent = (i < num_coherent)
-                dot.update(is_coherent)
+                dot.update(is_coherent_flags[i])
                 dot.draw(self.screen)
                 
             pygame.display.flip()
