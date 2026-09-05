@@ -405,16 +405,21 @@ class PreliminaryExperiment:
     # --------------------------------------------------------
     def phase_end_screen(self):
         """実験終了画面"""
+        pygame.event.clear()
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("実験終了", self.title_font, (255, 255, 255), -30)
-        self.draw_text_centered("お疲れ様でした。Escキーで終了します。",
-                                self.small_font, (180, 180, 180), 30)
+        self.draw_text_centered("終了", self.title_font, (255, 255, 255), 0)
         pygame.display.flip()
 
-        while True:
-            event = self.handle_quit_events()
-            if event and event.type == pygame.KEYDOWN:
-                break
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    waiting = False
+                    break
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        waiting = False
+                        break
             self.clock.tick(FPS)
 
     # --------------------------------------------------------

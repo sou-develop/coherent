@@ -524,6 +524,28 @@ class CoherentMotionExperiment:
         print(f"結果を {filename} に保存しました。（{len(self.all_results)}試行分）")
 
     # --------------------------------------------------------
+    # 終了画面
+    # --------------------------------------------------------
+    def phase_end_screen(self):
+        """実験終了画面"""
+        pygame.event.clear()
+        self.screen.fill(SCREEN_BG_COLOR)
+        self.draw_text_centered("終了", self.title_font, (255, 255, 255), 0)
+        pygame.display.flip()
+
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    waiting = False
+                    break
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        waiting = False
+                        break
+            self.clock.tick(FPS)
+
+    # --------------------------------------------------------
     # 実験の実行
     # --------------------------------------------------------
     def run(self):
@@ -551,6 +573,9 @@ class CoherentMotionExperiment:
 
         # 全試行終了後にCSV保存
         self.save_results()
+
+        # 終了画面
+        self.phase_end_screen()
 
         pygame.quit()
         print("実験を終了しました。")
