@@ -252,7 +252,8 @@ class CoherentMotionExperiment:
         self.user_responses = []
         self.all_results = []
         self.response_time_ms = 0
-        self.subject_no = ""
+        subject_info = _load_json("subject.json")
+        self.subject_no = str(subject_info.get("subject_no", "001"))
         self.trial_list = []
         self.current_trial_idx = 0
         self.current_coherence = 0.0

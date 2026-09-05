@@ -4,15 +4,14 @@
 実験フロー（1試行）:
 1. 「Enterキーで開始」画面
 2. 注視点（1秒）
-3. RSVP で数字を1桁ずつ提示（桁数は試行ごとに 7〜15）
-4. 空白画面で待機（config の drd.duration_sec 秒間）
-5. 数字入力画面（提示した桁数分のマス）
+3. RSVP で数字を1桁ずつ提示（桁数は試行ごとに config で設定）
+4. 空白画面で待機（config の preliminary.wait_duration_sec 秒間）
+5. 数字入力画面（config の preliminary.input_slots マス）
 6. 結果を記録（画面フィードバックなし）
 
 試行構成:
-- 9条件: 桁数 7, 8, 9, 10, 11, 12, 13, 14, 15
-- 3ブロック: 各ブロック内で 9条件をランダム順
-- 合計 27試行
+- config の preliminary.digit_lengths_min 〜 digit_lengths_max 桁
+- config の preliminary.num_blocks ブロック繰り返し
 
 使い方:
   python3 preliminary_experiment.py
@@ -51,16 +50,20 @@ SCREEN_HEIGHT = _display.get("screen_height", 1080)
 FULLSCREEN = _display.get("fullscreen", False)
 FPS = _display.get("fps", 60)
 
-# --- RSVP設定 ---
+# --- 予備実験専用設定（config.json の preliminary セクション） ---
+_prelim = _config.get("preliminary", {})
+DIGIT_DISPLAY_TIME_MS = _prelim.get("digit_display_time_ms", 500)
+DIGIT_BLANK_TIME_MS = _prelim.get("digit_blank_time_ms", 100)
+WAIT_DURATION_SEC = _prelim.get("wait_duration_sec", 8.0)
+DIGIT_LENGTHS_MIN = _prelim.get("digit_lengths_min", 5)
+DIGIT_LENGTHS_MAX = _prelim.get("digit_lengths_max", 9)
+INPUT_SLOTS = _prelim.get("input_slots", 10)
+NUM_BLOCKS = _prelim.get("num_blocks", 3)
+
+# --- RSVP表示設定（フォントサイズ・色は本実験と共有） ---
 _rsvp = _config.get("rsvp", {})
-DIGIT_DISPLAY_TIME_MS = _rsvp.get("digit_display_time_ms", 75)
-DIGIT_BLANK_TIME_MS = _rsvp.get("digit_blank_time_ms", 45)
 DIGIT_FONT_SIZE = _rsvp.get("digit_font_size", 120)
 DIGIT_LUMINANCE_RGB = tuple(_rsvp.get("digit_luminance_rgb", [165, 165, 165]))
-
-# --- 待機時間（DRDの duration_sec を流用） ---
-_drd = _config.get("drd", {})
-WAIT_DURATION_SEC = _drd.get("duration_sec", 8.0)
 
 # --- 入力画面設定 ---
 _input_cfg = _config.get("input", {})
@@ -68,10 +71,9 @@ INPUT_FONT_SIZE = _input_cfg.get("font_size", 48)
 INPUT_COLOR = tuple(_input_cfg.get("color", [255, 255, 255]))
 CURSOR_BLINK_MS = _input_cfg.get("cursor_blink_ms", 500)
 
-# --- 予備実験固有設定 ---
-DIGIT_LENGTHS = list(range(7, 16))  # 7, 8, 9, 10, 11, 12, 13, 14, 15
-NUM_BLOCKS = 3
-TOTAL_TRIALS = len(DIGIT_LENGTHS) * NUM_BLOCKS  # 9 × 3 = 27
+# --- 予備実験固有の計算値 ---
+DIGIT_LENGTHS = list(range(DIGIT_LENGTHS_MIN, DIGIT_LENGTHS_MAX + 1))
+TOTAL_TRIALS = len(DIGIT_LENGTHS) * NUM_BLOCKS
 
 SCREEN_BG_COLOR = (0, 0, 0)
 
@@ -164,7 +166,8 @@ class PreliminaryExperiment:
         self.user_responses = []
         self.all_results = []
         self.response_time_ms = 0
-        self.subject_no = ""
+        subject_info = _load_json("subject.json")
+        self.subject_no = str(subject_info.get("subject_no", "001"))
         self.trial_list = []
         self.current_trial_idx = 0
 
@@ -264,8 +267,8 @@ class PreliminaryExperiment:
     # フェーズ 3: 数字入力画面（桁数可変グリッド）
     # --------------------------------------------------------
     def phase_input(self, num_digits):
-        """15マスに数字を入力させる（一度入力したら修正不可）"""
-        input_slots = 15  # 入力マスは常に15
+        """INPUT_SLOTSマスに数字を入力させる（Enterで入力完了）"""
+        input_slots = INPUT_SLOTS
         self.user_responses = [None] * input_slots
         pos = 0
         cursor_visible = True

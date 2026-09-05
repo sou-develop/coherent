@@ -55,6 +55,15 @@
         ],
         "repetitions_per_condition": 20
     },
+    "preliminary": {
+        "digit_display_time_ms": 500,
+        "digit_blank_time_ms": 100,
+        "digit_lengths_min": 5,
+        "digit_lengths_max": 9,
+        "input_slots": 10,
+        "wait_duration_sec": 8.0,
+        "num_blocks": 3
+    },
     "input": {
         "font_size": 48,
         "color": [
