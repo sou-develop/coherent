@@ -19,6 +19,7 @@
 
 import pygame
 import random
+import math
 import sys
 import os
 import csv
@@ -59,11 +60,28 @@ DIGIT_LENGTHS_MIN = _prelim.get("digit_lengths_min", 5)
 DIGIT_LENGTHS_MAX = _prelim.get("digit_lengths_max", 9)
 INPUT_SLOTS = _prelim.get("input_slots", 10)
 NUM_BLOCKS = _prelim.get("num_blocks", 3)
+DIGIT_VISUAL_ANGLE_DEG = _prelim.get("digit_visual_angle_deg", 1.0)
 
 # --- RSVP表示設定（フォントサイズ・色は本実験と共有） ---
 _rsvp = _config.get("rsvp", {})
-DIGIT_FONT_SIZE = _rsvp.get("digit_font_size", 120)
+DIGIT_FONT_SIZE = _rsvp.get("digit_font_size", 120)  # フォールバック用
 DIGIT_LUMINANCE_RGB = tuple(_rsvp.get("digit_luminance_rgb", [165, 165, 165]))
+
+# --- 視角パラメータ（モニター情報から計算） ---
+VIEWING_DISTANCE_CM = _display.get("viewing_distance_cm", 70)
+DISPLAY_AREA_H_MM = _display.get("display_area_h_mm", 527.04)
+
+# 1ピクセルあたりの物理サイズ = 表示面積(mm) ÷ 解像度(px)
+#   527.04mm ÷ 1920px = 0.2745 mm/px
+PIXEL_SIZE_MM = DISPLAY_AREA_H_MM / SCREEN_WIDTH
+
+# 視角 → ピクセル変換:
+#   size_mm = 2 * distance_mm * tan(angle_deg / 2)
+#   size_px = size_mm / pixel_size_mm
+DIGIT_TARGET_SIZE_PX = 2 * (VIEWING_DISTANCE_CM * 10) * math.tan(
+    math.radians(DIGIT_VISUAL_ANGLE_DEG / 2)
+) / PIXEL_SIZE_MM
+# 視角1°, 距離70cm, 527.04mm÷1920px → 約44.5px
 
 # --- 入力画面設定 ---
 _input_cfg = _config.get("input", {})
@@ -154,7 +172,7 @@ class PreliminaryExperiment:
                     pass
             return pygame.font.Font(None, size)
 
-        self.digit_font = get_font(DIGIT_FONT_SIZE)
+        self.digit_font = self._compute_digit_font(get_font)
         self.fixation_font = get_font(36)
         self.input_font = get_font(INPUT_FONT_SIZE)
         self.label_font = get_font(32)
@@ -170,6 +188,56 @@ class PreliminaryExperiment:
         self.subject_no = str(subject_info.get("subject_no", "001"))
         self.trial_list = []
         self.current_trial_idx = 0
+
+    # --------------------------------------------------------
+    # 視角ベースのフォントサイズ計算
+    # --------------------------------------------------------
+    def _compute_digit_font(self, get_font_func):
+        """視角 DIGIT_VISUAL_ANGLE_DEG（直径）に数字が収まるフォントを計算する。
+
+        pygame のフォントサイズ（ポイント）は文字の描画高さと一致しないため、
+        実際にレンダリングして高さを測定し、目標ピクセル数に最も近いサイズを
+        二分探索で求める。
+
+        目標ピクセル数: DIGIT_TARGET_SIZE_PX（≈44.5px @ 視角1°, 距離70cm）
+        """
+        target_px = DIGIT_TARGET_SIZE_PX
+        # 測定用の代表文字（0〜9で最も高さが大きくなりやすい数字群）
+        test_chars = "0123456789"
+
+        def measure_max_height(font_size):
+            """指定フォントサイズで0〜9を描画したときの最大高さを返す"""
+            font = get_font_func(font_size)
+            max_h = 0
+            for ch in test_chars:
+                surf = font.render(ch, True, (255, 255, 255))
+                max_h = max(max_h, surf.get_height())
+            return max_h, font
+
+        # 二分探索でフォントサイズを決定
+        lo, hi = 8, 200
+        best_font = get_font_func(DIGIT_FONT_SIZE)  # フォールバック
+        best_diff = float('inf')
+
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            h, font = measure_max_height(mid)
+            diff = abs(h - target_px)
+            if diff < best_diff:
+                best_diff = diff
+                best_font = font
+                best_size = mid
+            if h < target_px:
+                lo = mid + 1
+            elif h > target_px:
+                hi = mid - 1
+            else:
+                break
+
+        print(f"[視角設定] 目標: 視角{DIGIT_VISUAL_ANGLE_DEG}° = {target_px:.1f}px, "
+              f"フォントサイズ: {best_size}pt, "
+              f"実測高さ: {measure_max_height(best_size)[0]}px")
+        return best_font
 
     # --------------------------------------------------------
     # ヘルパー
