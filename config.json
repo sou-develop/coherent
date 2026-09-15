@@ -66,7 +66,7 @@
         "digit_lengths_max": 9,
         "input_slots": 10,
         "wait_duration_sec": 8.0,
-        "num_blocks": 3,
+        "num_blocks": 6,
         "digit_visual_angle_deg": 1.0
     },
     "input": {
