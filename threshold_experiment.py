@@ -70,14 +70,29 @@ _rsvp = _config.get("rsvp", {})
 BG_DIAMETER_DEG = _rsvp.get("background_diameter_deg", 10)
 BG_LUMINANCE_RGB = tuple(_rsvp.get("background_luminance_rgb", [15, 15, 15]))
 
+# --- 視角パラメータ（モニター情報から計算） ---
+VIEWING_DISTANCE_CM = _display.get("viewing_distance_cm", 70)
+DISPLAY_AREA_H_MM = _display.get("display_area_h_mm", 527.04)
+
+# 1ピクセルあたりの物理サイズ = 表示面積(mm) ÷ 解像度(px)
+PIXEL_SIZE_MM = DISPLAY_AREA_H_MM / SCREEN_WIDTH
+
 # --- 計算値 ---
-BG_RADIUS_PX = int(BG_DIAMETER_DEG / 2 * PIXELS_PER_DEGREE)
+# 背景円の直径（視角 → ピクセル変換: tan() ベースの計算）
+BG_DIAMETER_PX = 2 * (VIEWING_DISTANCE_CM * 10) * math.tan(
+    math.radians(BG_DIAMETER_DEG / 2)
+) / PIXEL_SIZE_MM
+BG_RADIUS_PX = int(BG_DIAMETER_PX / 2)
 DRD_APERTURE_RADIUS_PX = BG_RADIUS_PX
 DRD_AREA_DEG2 = math.pi * (BG_DIAMETER_DEG / 2) ** 2
 NUM_DOTS = round(DOT_DENSITY_PER_DEG2 * DRD_AREA_DEG2)
-DOT_SPEED = DOT_SPEED_DEG_PER_SEC * PIXELS_PER_DEGREE / FPS
+# 1度あたりのピクセル数（tan ベース, 1°）
+_PIXELS_PER_DEG_EXACT = 2 * (VIEWING_DISTANCE_CM * 10) * math.tan(
+    math.radians(0.5)
+) / PIXEL_SIZE_MM
+DOT_SPEED = DOT_SPEED_DEG_PER_SEC * _PIXELS_PER_DEG_EXACT / FPS
 CONDITIONS_PER_BLOCK = len(SIGNAL_DIRECTIONS_DEG) * len(COHERENCE_LEVELS)
-TOTAL_TRIALS = CONDITIONS_PER_BLOCK * NUM_BLOCKS  # 2×5×20 = 200
+TOTAL_TRIALS = CONDITIONS_PER_BLOCK * NUM_BLOCKS  # 2×5×10 = 100
 SCREEN_BG_COLOR = (0, 0, 0)
 
 
