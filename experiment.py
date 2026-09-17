@@ -2,12 +2,12 @@
 コヒーレント運動実験プログラム
 
 実験フロー:
-1. 数字を1つずつ画面中央に高速表示（RSVP）
+1. 数字を1つずつ画面中央に高速表示（RSVP）— 桁数は試行ごとに6〜9桁
 2. コヒーレント運動（動的ランダムドット: DRD）を表示
-3. 記憶した数字の入力画面を表示
+3. 記憶した数字の入力画面を表示（固定マス数、Enterで途中確定可）
 
 試行構成:
-- 4方向 × 5コヒーレンス率 = 全20条件を1回ずつ（合計20試行）
+- 2方向 × 5コヒーレンス率 × 4桁数(6-9) = 全40条件を1回ずつ（合計40試行）
 - 順序はランダム、フィードバックなし
 
 使い方:
@@ -51,10 +51,13 @@ PIXELS_PER_DEGREE = _display.get("pixels_per_degree", 32)
 
 # --- RSVP設定 ---
 _rsvp = _config.get("rsvp", {})
-NUM_DIGITS = _rsvp.get("num_digits", 15)
-DIGIT_DISPLAY_TIME_MS = _rsvp.get("digit_display_time_ms", 75)
-DIGIT_BLANK_TIME_MS = _rsvp.get("digit_blank_time_ms", 45)
+DIGIT_DISPLAY_TIME_MS = _rsvp.get("digit_display_time_ms", 500)
+DIGIT_BLANK_TIME_MS = _rsvp.get("digit_blank_time_ms", 100)
+DIGIT_LENGTHS_MIN = _rsvp.get("digit_lengths_min", 6)
+DIGIT_LENGTHS_MAX = _rsvp.get("digit_lengths_max", 9)
+INPUT_SLOTS = _rsvp.get("input_slots", 10)
 DIGIT_FONT_SIZE = _rsvp.get("digit_font_size", 120)
+DIGIT_VISUAL_ANGLE_DEG = _rsvp.get("digit_visual_angle_deg", 1.0)
 BG_DIAMETER_DEG = _rsvp.get("background_diameter_deg", 10)
 BG_LUMINANCE_RGB = tuple(_rsvp.get("background_luminance_rgb", [5, 5, 5]))
 FRAME_DIAMETER_DEG = _rsvp.get("frame_diameter_deg", 1)
@@ -68,7 +71,7 @@ DOT_DENSITY_PER_DEG2 = _drd.get("dot_density_per_deg2", 1.27)
 DOT_SPEED_DEG_PER_SEC = _drd.get("dot_speed_deg_per_sec", 14.2)
 DOT_RADIUS = _drd.get("dot_radius", 3)
 DOT_COLOR = tuple(_drd.get("dot_color", [255, 255, 255]))
-SIGNAL_DIRECTIONS_DEG = _drd.get("signal_directions_deg", [70, 160, 250, 340])
+SIGNAL_DIRECTIONS_DEG = _drd.get("signal_directions_deg", [0, 180])
 COHERENCE_LEVELS = _drd.get("coherence_levels", [0.0, 0.05, 0.10, 0.20, 0.50])
 REPETITIONS = _drd.get("repetitions_per_condition", 20)
 
@@ -78,6 +81,20 @@ INPUT_FONT_SIZE = _input_cfg.get("font_size", 48)
 INPUT_COLOR = tuple(_input_cfg.get("color", [255, 255, 255]))
 CURSOR_BLINK_MS = _input_cfg.get("cursor_blink_ms", 500)
 
+# --- 視角パラメータ（モニター情報から計算） ---
+VIEWING_DISTANCE_CM = _display.get("viewing_distance_cm", 70)
+DISPLAY_AREA_H_MM = _display.get("display_area_h_mm", 527.04)
+
+# 1ピクセルあたりの物理サイズ = 表示面積(mm) ÷ 解像度(px)
+PIXEL_SIZE_MM = DISPLAY_AREA_H_MM / SCREEN_WIDTH
+
+# 視角 → ピクセル変換:
+#   size_mm = 2 * distance_mm * tan(angle_deg / 2)
+#   size_px = size_mm / pixel_size_mm
+DIGIT_TARGET_SIZE_PX = 2 * (VIEWING_DISTANCE_CM * 10) * math.tan(
+    math.radians(DIGIT_VISUAL_ANGLE_DEG / 2)
+) / PIXEL_SIZE_MM
+
 # --- 計算値 ---
 BG_RADIUS_PX = int(BG_DIAMETER_DEG / 2 * PIXELS_PER_DEGREE)
 FRAME_RADIUS_PX = int(FRAME_DIAMETER_DEG / 2 * PIXELS_PER_DEGREE)
@@ -85,7 +102,8 @@ DRD_APERTURE_RADIUS_PX = BG_RADIUS_PX
 DRD_AREA_DEG2 = math.pi * (BG_DIAMETER_DEG / 2) ** 2
 NUM_DOTS = round(DOT_DENSITY_PER_DEG2 * DRD_AREA_DEG2)
 DOT_SPEED = DOT_SPEED_DEG_PER_SEC * PIXELS_PER_DEGREE / FPS
-TOTAL_TRIALS = len(SIGNAL_DIRECTIONS_DEG) * len(COHERENCE_LEVELS)  # 4方向 × 5コヒーレンス率 = 20
+DIGIT_LENGTHS = list(range(DIGIT_LENGTHS_MIN, DIGIT_LENGTHS_MAX + 1))
+TOTAL_TRIALS = len(SIGNAL_DIRECTIONS_DEG) * len(COHERENCE_LEVELS) * len(DIGIT_LENGTHS)  # 2方向 × 5コヒーレンス率 × 4桁数 = 40
 SCREEN_BG_COLOR = (0, 0, 0)
 
 
@@ -106,12 +124,17 @@ def deg_to_rad(deg):
 def generate_trial_list():
     """全試行の条件リストを生成してランダムシャッフル。
 
-    4方向 × 5コヒーレンス率 = 全20条件を1回ずつ含む。
+    2方向 × 5コヒーレンス率 × 4桁数(6-9) = 全40条件を1回ずつ含む。
     """
     trials = []
     for direction in SIGNAL_DIRECTIONS_DEG:
         for coherence in COHERENCE_LEVELS:
-            trials.append({"direction_deg": direction, "coherence": coherence})
+            for num_digits in DIGIT_LENGTHS:
+                trials.append({
+                    "direction_deg": direction,
+                    "coherence": coherence,
+                    "num_digits": num_digits,
+                })
     random.shuffle(trials)
     return trials
 
@@ -240,7 +263,7 @@ class CoherentMotionExperiment:
                     pass
             return pygame.font.Font(None, size)
 
-        self.digit_font = get_font(DIGIT_FONT_SIZE)
+        self.digit_font = self._compute_digit_font(get_font)
         self.fixation_font = get_font(36)
         self.input_font = get_font(INPUT_FONT_SIZE)
         self.label_font = get_font(32)
@@ -258,6 +281,53 @@ class CoherentMotionExperiment:
         self.current_trial_idx = 0
         self.current_coherence = 0.0
         self.current_direction_deg = 0.0
+
+    # --------------------------------------------------------
+    # 視角ベースのフォントサイズ計算
+    # --------------------------------------------------------
+    def _compute_digit_font(self, get_font_func):
+        """視角 DIGIT_VISUAL_ANGLE_DEG（直径）に数字が収まるフォントを計算する。
+
+        pygame のフォントサイズ（ポイント）は文字の描画高さと一致しないため、
+        実際にレンダリングして高さを測定し、目標ピクセル数に最も近いサイズを
+        二分探索で求める。
+
+        目標ピクセル数: DIGIT_TARGET_SIZE_PX（≈44.5px @ 視角1°, 距離70cm）
+        """
+        target_px = DIGIT_TARGET_SIZE_PX
+        test_chars = "0123456789"
+
+        def measure_max_height(font_size):
+            font = get_font_func(font_size)
+            max_h = 0
+            for ch in test_chars:
+                surf = font.render(ch, True, (255, 255, 255))
+                max_h = max(max_h, surf.get_height())
+            return max_h, font
+
+        lo, hi = 8, 200
+        best_font = get_font_func(DIGIT_FONT_SIZE)
+        best_diff = float('inf')
+
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            h, font = measure_max_height(mid)
+            diff = abs(h - target_px)
+            if diff < best_diff:
+                best_diff = diff
+                best_font = font
+                best_size = mid
+            if h < target_px:
+                lo = mid + 1
+            elif h > target_px:
+                hi = mid - 1
+            else:
+                break
+
+        print(f"[視角設定] 目標: 視角{DIGIT_VISUAL_ANGLE_DEG}° = {target_px:.1f}px, "
+              f"フォントサイズ: {best_size}pt, "
+              f"実測高さ: {measure_max_height(best_size)[0]}px")
+        return best_font
 
     # --------------------------------------------------------
     # ヘルパー
@@ -310,9 +380,9 @@ class CoherentMotionExperiment:
     # --------------------------------------------------------
     # フェーズ 1: 数字のRSVP表示
     # --------------------------------------------------------
-    def phase_digit_display(self):
-        """15個の数字を高速表示（背景円＋提示枠付き）"""
-        self.digit_sequence = generate_digit_sequence(NUM_DIGITS)
+    def phase_digit_display(self, num_digits):
+        """指定された桁数の数字を高速表示（背景円＋提示枠付き）"""
+        self.digit_sequence = generate_digit_sequence(num_digits)
 
         # 注視点（1秒）: 黒背景に点のみ
         self.screen.fill(SCREEN_BG_COLOR)
@@ -389,11 +459,12 @@ class CoherentMotionExperiment:
         pygame.time.wait(500)
 
     # --------------------------------------------------------
-    # フェーズ 3: 数字入力画面（15マスグリッド）
+    # フェーズ 3: 数字入力画面（固定マスグリッド＋Enter途中確定）
     # --------------------------------------------------------
     def phase_input(self):
-        """NUM_DIGITSマスに数字を入力させる（一度入力したら修正不可）"""
-        self.user_responses = [None] * NUM_DIGITS
+        """INPUT_SLOTSマスに数字を入力させる（Enterで入力完了）"""
+        input_slots = INPUT_SLOTS
+        self.user_responses = [None] * input_slots
         pos = 0
         cursor_visible = True
         cursor_timer = pygame.time.get_ticks()
@@ -409,13 +480,11 @@ class CoherentMotionExperiment:
                         pygame.quit()
                         sys.exit()
                     elif len(event.unicode) == 1 and event.unicode in '0123456789':
-                        # Caps Lockなど余計なキーで空白・空文字が入らないよう
-                        # 長さ1の数字文字であることを厳密にチェック
-                        if pos < NUM_DIGITS:
+                        if pos < input_slots:
                             self.user_responses[pos] = event.unicode
                             pos += 1
                     elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                        if pos == NUM_DIGITS:
+                        if pos > 0:
                             self.response_time_ms = pygame.time.get_ticks() - input_start
                             return
 
@@ -432,11 +501,11 @@ class CoherentMotionExperiment:
             # グリッド
             cell = 50
             gap = 8
-            tw = NUM_DIGITS * cell + (NUM_DIGITS - 1) * gap
+            tw = input_slots * cell + (input_slots - 1) * gap
             sx = (self.width - tw) // 2
             gy = self.height // 2 - cell // 2
 
-            for i in range(NUM_DIGITS):
+            for i in range(input_slots):
                 cx = sx + i * (cell + gap)
                 if i == pos:
                     bd_c = (255, 255, 255) if cursor_visible else (0, 0, 0)
@@ -453,7 +522,7 @@ class CoherentMotionExperiment:
                     self.screen.blit(txt, txt.get_rect(
                         center=(cx + cell // 2, gy + cell // 2)))
 
-            if pos == NUM_DIGITS:
+            if pos > 0:
                 self.draw_text_centered("Enterキーで確定", self.small_font, (255, 255, 255), cell + 40)
 
             pygame.display.flip()
@@ -464,6 +533,9 @@ class CoherentMotionExperiment:
     # --------------------------------------------------------
     def collect_results(self):
         """試行結果を記録する（画面表示なし）"""
+        trial = self.trial_list[self.current_trial_idx]
+        num_digits = trial["num_digits"]
+
         correct_str = "".join(map(str, self.digit_sequence))
         # 入力をまとめる（スキップは空白）
         input_chars = []
@@ -479,16 +551,17 @@ class CoherentMotionExperiment:
             if correct_str[i] == input_str[i]:
                 correct_count += 1
 
-        accuracy = (correct_count / NUM_DIGITS) * 100 if NUM_DIGITS > 0 else 0
+        accuracy = (correct_count / num_digits) * 100 if num_digits > 0 else 0
 
         result = {
             "subject_no": self.subject_no,
             "trial": self.current_trial_idx + 1,
+            "num_digits": num_digits,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "digit_sequence": correct_str,
             "user_input": input_str,
             "correct_count": correct_count,
-            "total_digits": NUM_DIGITS,
+            "total_digits": num_digits,
             "accuracy": accuracy,
             "response_time_ms": self.response_time_ms,
             "coherence": self.current_coherence,
@@ -555,12 +628,14 @@ class CoherentMotionExperiment:
 
         for idx in range(TOTAL_TRIALS):
             self.current_trial_idx = idx
+            trial = self.trial_list[idx]
+            num_digits = trial["num_digits"]
 
             # 開始画面
             self.phase_start_screen()
 
             # フェーズ1: RSVP数字表示
-            self.phase_digit_display()
+            self.phase_digit_display(num_digits)
 
             # フェーズ2: DRD表示
             self.phase_coherent_motion()

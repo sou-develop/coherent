@@ -12,10 +12,13 @@
         "display_area_v_mm": 296.46
     },
     "rsvp": {
-        "num_digits": 13,
-        "digit_display_time_ms": 1500,
-        "digit_blank_time_ms": 1000,
+        "digit_display_time_ms": 500,
+        "digit_blank_time_ms": 100,
+        "digit_lengths_min": 6,
+        "digit_lengths_max": 9,
+        "input_slots": 10,
         "digit_font_size": 120,
+        "digit_visual_angle_deg": 1.0,
         "background_diameter_deg": 10,
         "background_luminance_rgb": [
             15,
@@ -45,10 +48,8 @@
             255
         ],
         "signal_directions_deg": [
-            70,
-            160,
-            250,
-            340
+            0,
+            180
         ],
         "coherence_levels": [
             0.0,
