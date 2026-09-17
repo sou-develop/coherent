@@ -60,6 +60,10 @@
         ],
         "repetitions_per_condition": 20
     },
+    "experiment": {
+        "num_blocks": 3,
+        "rest_duration_sec": 60
+    },
     "preliminary": {
         "digit_display_time_ms": 500,
         "digit_blank_time_ms": 100,

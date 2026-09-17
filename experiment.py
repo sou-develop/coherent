@@ -7,8 +7,9 @@
 3. 記憶した数字の入力画面を表示（固定マス数、Enterで途中確定可）
 
 試行構成:
-- 2方向 × 5コヒーレンス率 × 4桁数(6-9) = 全40条件を1回ずつ（合計40試行）
-- 順序はランダム、フィードバックなし
+- 2方向 × 5コヒーレンス率 × 4桁数(6-9) = 全40条件 × NUM_BLOCKSブロック
+- ブロック間に休憩フェーズあり（configで休憩秒数を設定可能）
+- 順序はランダム（ブロックごとに再シャッフル）、フィードバックなし
 
 使い方:
   python3 experiment.py
@@ -74,6 +75,11 @@ DOT_COLOR = tuple(_drd.get("dot_color", [255, 255, 255]))
 SIGNAL_DIRECTIONS_DEG = _drd.get("signal_directions_deg", [0, 180])
 COHERENCE_LEVELS = _drd.get("coherence_levels", [0.0, 0.05, 0.10, 0.20, 0.50])
 REPETITIONS = _drd.get("repetitions_per_condition", 20)
+
+# --- 実験全体設定 ---
+_experiment = _config.get("experiment", {})
+NUM_BLOCKS = _experiment.get("num_blocks", 3)
+REST_DURATION_SEC = _experiment.get("rest_duration_sec", 60)
 
 # --- 入力画面設定 ---
 _input_cfg = _config.get("input", {})
@@ -279,6 +285,8 @@ class CoherentMotionExperiment:
         self.subject_no = str(subject_info.get("subject_no", "001"))
         self.trial_list = []
         self.current_trial_idx = 0
+        self.current_block = 1
+        self.global_trial_idx = 0
         self.current_coherence = 0.0
         self.current_direction_deg = 0.0
 
@@ -529,6 +537,72 @@ class CoherentMotionExperiment:
             self.clock.tick(FPS)
 
     # --------------------------------------------------------
+    # ブロック間の休憩フェーズ
+    # --------------------------------------------------------
+    def phase_rest(self):
+        """ブロック間の休憩フェーズ
+
+        休憩中はテンキーを含む全キーを無効化し、
+        REST_DURATION_SEC 秒経過後に Enter キーで再開可能にする。
+        """
+        rest_start = pygame.time.get_ticks()
+        rest_duration_ms = int(REST_DURATION_SEC * 1000)
+
+        # テンキーのキーコード一覧
+        numpad_keys = {
+            pygame.K_KP0, pygame.K_KP1, pygame.K_KP2, pygame.K_KP3,
+            pygame.K_KP4, pygame.K_KP5, pygame.K_KP6, pygame.K_KP7,
+            pygame.K_KP8, pygame.K_KP9, pygame.K_KP_ENTER,
+            pygame.K_KP_PLUS, pygame.K_KP_MINUS, pygame.K_KP_MULTIPLY,
+            pygame.K_KP_DIVIDE, pygame.K_KP_PERIOD,
+        }
+
+        can_resume = False
+
+        while True:
+            elapsed = pygame.time.get_ticks() - rest_start
+            remaining_sec = max(0, (rest_duration_ms - elapsed) / 1000)
+
+            if elapsed >= rest_duration_ms:
+                can_resume = True
+
+            # イベント処理
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        pygame.quit()
+                        sys.exit()
+                    # 休憩中はテンキーを無視
+                    if not can_resume and event.key in numpad_keys:
+                        continue
+                    # 休憩時間が経過していれば Enter で再開
+                    if can_resume and event.key in (
+                        pygame.K_RETURN, pygame.K_KP_ENTER
+                    ):
+                        return
+
+            # 描画
+            self.screen.fill(SCREEN_BG_COLOR)
+
+            if can_resume:
+                self.draw_text_centered("休憩終了", self.title_font,
+                                        (255, 255, 255), -40)
+                self.draw_text_centered("Enterキーで再開", self.label_font,
+                                        (255, 255, 255), 40)
+            else:
+                self.draw_text_centered("休憩中", self.title_font,
+                                        (255, 255, 255), -40)
+                remaining_text = f"残り {int(remaining_sec)} 秒"
+                self.draw_text_centered(remaining_text, self.label_font,
+                                        (200, 200, 200), 40)
+
+            pygame.display.flip()
+            self.clock.tick(FPS)
+
+    # --------------------------------------------------------
     # 結果集計（フィードバックなし）
     # --------------------------------------------------------
     def collect_results(self):
@@ -555,7 +629,9 @@ class CoherentMotionExperiment:
 
         result = {
             "subject_no": self.subject_no,
+            "block": self.current_block,
             "trial": self.current_trial_idx + 1,
+            "global_trial": self.global_trial_idx,
             "num_digits": num_digits,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "digit_sequence": correct_str,
@@ -622,29 +698,38 @@ class CoherentMotionExperiment:
     # 実験の実行
     # --------------------------------------------------------
     def run(self):
-        """実験全体を実行する"""
-        # 全試行条件を生成
-        self.trial_list = generate_trial_list()
+        """実験全体を実行する（NUM_BLOCKS ブロック × 40試行）"""
+        self.global_trial_idx = 0
 
-        for idx in range(TOTAL_TRIALS):
-            self.current_trial_idx = idx
-            trial = self.trial_list[idx]
-            num_digits = trial["num_digits"]
+        for block in range(NUM_BLOCKS):
+            self.current_block = block + 1
+            # ブロックごとに条件リストを再シャッフル
+            self.trial_list = generate_trial_list()
 
-            # 開始画面
-            self.phase_start_screen()
+            for idx in range(TOTAL_TRIALS):
+                self.current_trial_idx = idx
+                self.global_trial_idx += 1
+                trial = self.trial_list[idx]
+                num_digits = trial["num_digits"]
 
-            # フェーズ1: RSVP数字表示
-            self.phase_digit_display(num_digits)
+                # 開始画面
+                self.phase_start_screen()
 
-            # フェーズ2: DRD表示
-            self.phase_coherent_motion()
+                # フェーズ1: RSVP数字表示
+                self.phase_digit_display(num_digits)
 
-            # フェーズ3: 数字入力
-            self.phase_input()
+                # フェーズ2: DRD表示
+                self.phase_coherent_motion()
 
-            # 結果集計（フィードバックなし）
-            self.collect_results()
+                # フェーズ3: 数字入力
+                self.phase_input()
+
+                # 結果集計（フィードバックなし）
+                self.collect_results()
+
+            # ブロック間の休憩（最終ブロック後は不要）
+            if block < NUM_BLOCKS - 1:
+                self.phase_rest()
 
         # 全試行終了後にCSV保存
         self.save_results()
