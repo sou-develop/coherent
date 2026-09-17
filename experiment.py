@@ -554,31 +554,11 @@ class CoherentMotionExperiment:
     def phase_rest(self):
         """ブロック間の休憩フェーズ
 
-        休憩中はテンキーを含む全キーを無効化し、
-        REST_DURATION_SEC 秒経過後に Enter キーで再開可能にする。
+        Enter キーで再開する。
         """
-        rest_start = pygame.time.get_ticks()
-        rest_duration_ms = int(REST_DURATION_SEC * 1000)
-
-        # テンキーのキーコード一覧
-        numpad_keys = {
-            pygame.K_KP0, pygame.K_KP1, pygame.K_KP2, pygame.K_KP3,
-            pygame.K_KP4, pygame.K_KP5, pygame.K_KP6, pygame.K_KP7,
-            pygame.K_KP8, pygame.K_KP9, pygame.K_KP_ENTER,
-            pygame.K_KP_PLUS, pygame.K_KP_MINUS, pygame.K_KP_MULTIPLY,
-            pygame.K_KP_DIVIDE, pygame.K_KP_PERIOD,
-        }
-
-        can_resume = False
+        pygame.event.clear()
 
         while True:
-            elapsed = pygame.time.get_ticks() - rest_start
-            remaining_sec = max(0, (rest_duration_ms - elapsed) / 1000)
-
-            if elapsed >= rest_duration_ms:
-                can_resume = True
-
-            # イベント処理
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -587,30 +567,13 @@ class CoherentMotionExperiment:
                     if event.key == pygame.K_ESCAPE:
                         pygame.quit()
                         sys.exit()
-                    # 休憩中はテンキーを無視
-                    if not can_resume and event.key in numpad_keys:
-                        continue
-                    # 休憩時間が経過していれば Enter で再開
-                    if can_resume and event.key in (
-                        pygame.K_RETURN, pygame.K_KP_ENTER
-                    ):
+                    if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                         return
 
             # 描画
             self.screen.fill(SCREEN_BG_COLOR)
-
-            if can_resume:
-                self.draw_text_centered("休憩終了", self.title_font,
-                                        (255, 255, 255), -40)
-                self.draw_text_centered("Enterキーで再開", self.label_font,
-                                        (255, 255, 255), 40)
-            else:
-                self.draw_text_centered("休憩中", self.title_font,
-                                        (255, 255, 255), -40)
-                remaining_text = f"残り {int(remaining_sec)} 秒"
-                self.draw_text_centered(remaining_text, self.label_font,
-                                        (200, 200, 200), 40)
-
+            self.draw_text_centered("休憩", self.title_font, (255, 255, 255), -40)
+            self.draw_text_centered("Enterキーで再開", self.label_font, (255, 255, 255), 40)
             pygame.display.flip()
             self.clock.tick(FPS)
 

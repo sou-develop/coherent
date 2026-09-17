@@ -369,7 +369,7 @@ class ThresholdExperiment:
             "どちらに動いていたか入力して下さい。",
             self.label_font, (255, 255, 255), -30)
         self.draw_text_centered(
-            "←４　６→",
+            "←　→",
             self.prompt_font, (255, 255, 255), 40)
         pygame.display.flip()
 
@@ -393,6 +393,35 @@ class ThresholdExperiment:
                         self.response_time_ms = pygame.time.get_ticks() - input_start
                         self.user_response_deg = 0  # 右
                         return
+            self.clock.tick(FPS)
+
+    # --------------------------------------------------------
+    # 休憩フェーズ
+    # --------------------------------------------------------
+    def phase_rest(self):
+        """休憩フェーズ
+
+        Enter キーで再開する。
+        """
+        pygame.event.clear()
+
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        pygame.quit()
+                        sys.exit()
+                    if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                        return
+
+            # 描画
+            self.screen.fill(SCREEN_BG_COLOR)
+            self.draw_text_centered("休憩", self.title_font, (255, 255, 255), -40)
+            self.draw_text_centered("Enterキーで再開", self.label_font, (255, 255, 255), 40)
+            pygame.display.flip()
             self.clock.tick(FPS)
 
     # --------------------------------------------------------
@@ -427,7 +456,7 @@ class ThresholdExperiment:
             return
 
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        results_dir = os.path.join(base_dir, "results")
+        results_dir = os.path.join(base_dir, "threshold_result")
         os.makedirs(results_dir, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -494,6 +523,10 @@ class ThresholdExperiment:
 
                 # 結果集計（フィードバックなし）
                 self.collect_results()
+
+                # 50試行ごとに休憩を入れる（最後の試行後は不要）
+                if self.global_trial_idx % 50 == 0 and self.global_trial_idx < TOTAL_TRIALS:
+                    self.phase_rest()
 
         # 全試行終了後にCSV保存
         self.save_results()
