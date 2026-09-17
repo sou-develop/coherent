@@ -572,7 +572,7 @@ class CoherentMotionExperiment:
 
             # 描画
             self.screen.fill(SCREEN_BG_COLOR)
-            self.draw_text_centered("休憩", self.title_font, (255, 255, 255), -40)
+            self.draw_text_centered("休憩フェーズ", self.title_font, (255, 255, 255), -40)
             self.draw_text_centered("Enterキーで再開", self.label_font, (255, 255, 255), 40)
             pygame.display.flip()
             self.clock.tick(FPS)
