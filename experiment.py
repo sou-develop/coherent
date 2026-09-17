@@ -554,11 +554,18 @@ class CoherentMotionExperiment:
     def phase_rest(self):
         """ブロック間の休憩フェーズ
 
-        Enter キーで再開する。
+        開始から2秒間はEnter入力を受け付けず、
+        2秒経過後に「Enterキーで再開」を表示し、再開可能にする。
         """
+        rest_start = pygame.time.get_ticks()
+        wait_ms = 2000
+        
         pygame.event.clear()
 
         while True:
+            elapsed = pygame.time.get_ticks() - rest_start
+            can_resume = (elapsed >= wait_ms)
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -567,13 +574,16 @@ class CoherentMotionExperiment:
                     if event.key == pygame.K_ESCAPE:
                         pygame.quit()
                         sys.exit()
-                    if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    if can_resume and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                         return
 
             # 描画
             self.screen.fill(SCREEN_BG_COLOR)
             self.draw_text_centered("休憩フェーズ", self.title_font, (255, 255, 255), -40)
-            self.draw_text_centered("Enterキーで再開", self.label_font, (255, 255, 255), 40)
+            
+            if can_resume:
+                self.draw_text_centered("Enterキーで再開", self.label_font, (255, 255, 255), 40)
+                
             pygame.display.flip()
             self.clock.tick(FPS)
 
