@@ -347,11 +347,15 @@ class ThresholdExperiment:
     def phase_direction_input(self):
         """黒画面で方向判断を入力させる。
 
-        テンキー4 = 左（180°）、テンキー6 = 右（0°）。
+        4キー（テンキー/通常） = 左（180°）、6キー（テンキー/通常） = 右（0°）。
         """
-        # 黒画面に「?」を表示して応答を待つ
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("?", self.prompt_font, (255, 255, 255), 0)
+        self.draw_text_centered(
+            "どちらに動いていたか入力して下さい。",
+            self.label_font, (255, 255, 255), -30)
+        self.draw_text_centered(
+            "←４　６→",
+            self.prompt_font, (255, 255, 255), 40)
         pygame.display.flip()
 
         pygame.event.clear()
@@ -366,11 +370,11 @@ class ThresholdExperiment:
                     if event.key == pygame.K_ESCAPE:
                         pygame.quit()
                         sys.exit()
-                    if event.key == pygame.K_KP4:
+                    if event.key in (pygame.K_KP4, pygame.K_4):
                         self.response_time_ms = pygame.time.get_ticks() - input_start
                         self.user_response_deg = 180  # 左
                         return
-                    if event.key == pygame.K_KP6:
+                    if event.key in (pygame.K_KP6, pygame.K_6):
                         self.response_time_ms = pygame.time.get_ticks() - input_start
                         self.user_response_deg = 0  # 右
                         return
