@@ -65,7 +65,7 @@
         "rest_duration_sec": 60
     },
     "threshold": {
-        "num_blocks": 10
+        "num_blocks": 20
     },
     "preliminary": {
         "digit_display_time_ms": 500,
