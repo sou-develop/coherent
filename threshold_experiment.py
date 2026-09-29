@@ -494,10 +494,71 @@ class ThresholdExperiment:
             self.clock.tick(FPS)
 
     # --------------------------------------------------------
+    # テストフェーズ（練習試行）
+    # --------------------------------------------------------
+    def phase_test(self):
+        """テストフェーズ（2試行、コヒーレンス率20%固定）。結果は保存しない。"""
+        TEST_TRIALS = 2
+        TEST_COHERENCE = 0.20
+
+        # テスト開始画面
+        self.screen.fill(SCREEN_BG_COLOR)
+        self.draw_text_centered("テストフェーズ", self.title_font, (255, 255, 255), -40)
+        self.draw_text_centered("Enterキーで開始", self.label_font, (255, 255, 255), 40)
+        pygame.display.flip()
+
+        while True:
+            event = self.handle_quit_events()
+            if event and event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                break
+            self.clock.tick(FPS)
+
+        # テスト試行用の条件（コヒーレンス率20%固定、方向はランダム）
+        test_trials = []
+        for _ in range(TEST_TRIALS):
+            test_trials.append({
+                "direction_deg": random.choice(SIGNAL_DIRECTIONS_DEG),
+                "coherence": TEST_COHERENCE,
+            })
+
+        for trial in test_trials:
+            self.current_coherence = trial["coherence"]
+            self.current_direction_deg = trial["direction_deg"]
+
+            # 開始画面
+            self.phase_start_screen()
+
+            # 注視点（1秒）
+            self.phase_fixation()
+
+            # コヒーレント運動表示
+            self.phase_coherent_motion()
+
+            # 方向判断入力
+            self.phase_direction_input()
+
+            # 結果は保存しない（テストなので）
+
+    # --------------------------------------------------------
     # 実験の実行
     # --------------------------------------------------------
     def run(self):
-        """実験全体を実行する（NUM_BLOCKS ブロック × 10条件）"""
+        """実験全体を実行する"""
+        # テストフェーズ（2試行、結果保存なし）
+        self.phase_test()
+
+        # 本番開始画面
+        self.screen.fill(SCREEN_BG_COLOR)
+        self.draw_text_centered("本番フェーズ", self.title_font, (255, 255, 255), -40)
+        self.draw_text_centered("Enterキーで開始", self.label_font, (255, 255, 255), 40)
+        pygame.display.flip()
+
+        while True:
+            event = self.handle_quit_events()
+            if event and event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                break
+            self.clock.tick(FPS)
+
         self.global_trial_idx = 0
 
         for block in range(NUM_BLOCKS):

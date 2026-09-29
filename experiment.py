@@ -442,11 +442,8 @@ class CoherentMotionExperiment:
     def phase_coherent_motion(self):
         """DRDを背景円内に表示"""
         cx, cy = self.width // 2, self.height // 2
-        trial = self.trial_list[self.current_trial_idx]
-        coherence = trial["coherence"]
-        direction_deg = trial["direction_deg"]
-        self.current_coherence = coherence
-        self.current_direction_deg = direction_deg
+        coherence = self.current_coherence
+        direction_deg = self.current_direction_deg
         coherent_dir_rad = deg_to_rad(direction_deg)
 
         dots = []
@@ -680,10 +677,72 @@ class CoherentMotionExperiment:
             self.clock.tick(FPS)
 
     # --------------------------------------------------------
+    # テストフェーズ（練習試行）
+    # --------------------------------------------------------
+    def phase_test(self):
+        """テストフェーズ（2試行）。結果は保存しない。"""
+        TEST_TRIALS = 2
+
+        # テスト開始画面
+        self.screen.fill(SCREEN_BG_COLOR)
+        self.draw_text_centered("テストフェーズ", self.title_font, (255, 255, 255), -40)
+        self.draw_text_centered("Enterキーで開始", self.label_font, (255, 255, 255), 40)
+        pygame.display.flip()
+
+        while True:
+            event = self.handle_quit_events()
+            if event and event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                break
+            self.clock.tick(FPS)
+
+        # テスト試行用の条件をランダムに生成
+        test_trials = []
+        for _ in range(TEST_TRIALS):
+            test_trials.append({
+                "direction_deg": random.choice(SIGNAL_DIRECTIONS_DEG),
+                "coherence": random.choice(COHERENCE_LEVELS),
+                "num_digits": random.choice(DIGIT_LENGTHS),
+            })
+
+        for i, trial in enumerate(test_trials):
+            num_digits = trial["num_digits"]
+            self.current_coherence = trial["coherence"]
+            self.current_direction_deg = trial["direction_deg"]
+
+            # 開始画面
+            self.phase_start_screen()
+
+            # RSVP数字表示
+            self.phase_digit_display(num_digits)
+
+            # DRD表示
+            self.phase_coherent_motion()
+
+            # 数字入力
+            self.phase_input()
+
+            # 結果は保存しない（テストなので）
+
+    # --------------------------------------------------------
     # 実験の実行
     # --------------------------------------------------------
     def run(self):
         """実験全体を実行する（NUM_BLOCKS ブロック × 40試行）"""
+        # テストフェーズ（2試行、結果保存なし）
+        self.phase_test()
+
+        # 本番開始画面
+        self.screen.fill(SCREEN_BG_COLOR)
+        self.draw_text_centered("本番フェーズ", self.title_font, (255, 255, 255), -40)
+        self.draw_text_centered("Enterキーで開始", self.label_font, (255, 255, 255), 40)
+        pygame.display.flip()
+
+        while True:
+            event = self.handle_quit_events()
+            if event and event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                break
+            self.clock.tick(FPS)
+
         self.global_trial_idx = 0
 
         for block in range(NUM_BLOCKS):
@@ -696,6 +755,8 @@ class CoherentMotionExperiment:
                 self.global_trial_idx += 1
                 trial = self.trial_list[idx]
                 num_digits = trial["num_digits"]
+                self.current_coherence = trial["coherence"]
+                self.current_direction_deg = trial["direction_deg"]
 
                 # 開始画面
                 self.phase_start_screen()
