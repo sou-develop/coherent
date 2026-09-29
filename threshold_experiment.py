@@ -297,7 +297,7 @@ class ThresholdExperiment:
     def phase_start_screen(self):
         """開始画面（Enterキーで開始）"""
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("Enterキーで開始", self.label_font,
+        self.draw_text_centered("Press Enter to Start", self.label_font,
                                 (255, 255, 255), 0)
         pygame.display.flip()
 
@@ -324,11 +324,8 @@ class ThresholdExperiment:
     def phase_coherent_motion(self):
         """DRDを背景円内に表示"""
         cx, cy = self.width // 2, self.height // 2
-        trial = self.trial_list[self.current_trial_idx]
-        coherence = trial["coherence"]
-        direction_deg = trial["direction_deg"]
-        self.current_coherence = coherence
-        self.current_direction_deg = direction_deg
+        coherence = self.current_coherence
+        direction_deg = self.current_direction_deg
         coherent_dir_rad = deg_to_rad(direction_deg)
 
         dots = []
@@ -366,7 +363,7 @@ class ThresholdExperiment:
         """
         self.screen.fill(SCREEN_BG_COLOR)
         self.draw_text_centered(
-            "どちらに動いていたか入力して下さい。",
+            "Which direction was it moving?",
             self.label_font, (255, 255, 255), -30)
         self.draw_text_centered(
             "←　→",
@@ -419,8 +416,8 @@ class ThresholdExperiment:
 
             # 描画
             self.screen.fill(SCREEN_BG_COLOR)
-            self.draw_text_centered("休憩", self.title_font, (255, 255, 255), -40)
-            self.draw_text_centered("Enterキーで再開", self.label_font, (255, 255, 255), 40)
+            self.draw_text_centered("Break", self.title_font, (255, 255, 255), -40)
+            self.draw_text_centered("Press Enter to Resume", self.label_font, (255, 255, 255), 40)
             pygame.display.flip()
             self.clock.tick(FPS)
 
@@ -478,7 +475,7 @@ class ThresholdExperiment:
         """実験終了画面"""
         pygame.event.clear()
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("終了", self.title_font, (255, 255, 255), 0)
+        self.draw_text_centered("End", self.title_font, (255, 255, 255), 0)
         pygame.display.flip()
 
         waiting = True
@@ -503,8 +500,8 @@ class ThresholdExperiment:
 
         # テスト開始画面
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("テストフェーズ", self.title_font, (255, 255, 255), -40)
-        self.draw_text_centered("Enterキーで開始", self.label_font, (255, 255, 255), 40)
+        self.draw_text_centered("Test Phase", self.title_font, (255, 255, 255), -40)
+        self.draw_text_centered("Press Enter to Continue", self.label_font, (255, 255, 255), 40)
         pygame.display.flip()
 
         while True:
@@ -549,8 +546,8 @@ class ThresholdExperiment:
 
         # 本番開始画面
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("本番フェーズ", self.title_font, (255, 255, 255), -40)
-        self.draw_text_centered("Enterキーで開始", self.label_font, (255, 255, 255), 40)
+        self.draw_text_centered("Main Phase", self.title_font, (255, 255, 255), -40)
+        self.draw_text_centered("Press Enter to Continue", self.label_font, (255, 255, 255), 40)
         pygame.display.flip()
 
         while True:
@@ -569,6 +566,9 @@ class ThresholdExperiment:
             for idx in range(CONDITIONS_PER_BLOCK):
                 self.current_trial_idx = idx
                 self.global_trial_idx += 1
+                trial = self.trial_list[idx]
+                self.current_coherence = trial["coherence"]
+                self.current_direction_deg = trial["direction_deg"]
 
                 # 開始画面
                 self.phase_start_screen()

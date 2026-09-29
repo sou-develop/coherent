@@ -387,7 +387,7 @@ class CoherentMotionExperiment:
     def phase_start_screen(self):
         """開始画面（Enterキーで開始）"""
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("Enterキーで開始", self.label_font,
+        self.draw_text_centered("Press Enter to Start", self.label_font,
                                 (255, 255, 255), 0)
         pygame.display.flip()
 
@@ -512,7 +512,7 @@ class CoherentMotionExperiment:
 
             # --- 描画 ---
             self.screen.fill(SCREEN_BG_COLOR)
-            self.draw_text_centered("数字を入力してください", self.label_font,
+            self.draw_text_centered("Enter the digits", self.label_font,
                                     (255, 255, 255), -100)
 
             # グリッド
@@ -540,7 +540,7 @@ class CoherentMotionExperiment:
                         center=(cx + cell // 2, gy + cell // 2)))
 
             if pos > 0:
-                self.draw_text_centered("Enterキーで確定", self.small_font, (255, 255, 255), cell + 40)
+                self.draw_text_centered("Press Enter to Confirm", self.small_font, (255, 255, 255), cell + 40)
 
             pygame.display.flip()
             self.clock.tick(FPS)
@@ -576,10 +576,10 @@ class CoherentMotionExperiment:
 
             # 描画
             self.screen.fill(SCREEN_BG_COLOR)
-            self.draw_text_centered("休憩フェーズ", self.title_font, (255, 255, 255), -40)
+            self.draw_text_centered("Break", self.title_font, (255, 255, 255), -40)
             
             if can_resume:
-                self.draw_text_centered("Enterキーで再開", self.label_font, (255, 255, 255), 40)
+                self.draw_text_centered("Press Enter to Resume", self.label_font, (255, 255, 255), 40)
                 
             pygame.display.flip()
             self.clock.tick(FPS)
@@ -661,7 +661,7 @@ class CoherentMotionExperiment:
         """実験終了画面"""
         pygame.event.clear()
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("終了", self.title_font, (255, 255, 255), 0)
+        self.draw_text_centered("End", self.title_font, (255, 255, 255), 0)
         pygame.display.flip()
 
         waiting = True
@@ -685,8 +685,8 @@ class CoherentMotionExperiment:
 
         # テスト開始画面
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("テストフェーズ", self.title_font, (255, 255, 255), -40)
-        self.draw_text_centered("Enterキーで開始", self.label_font, (255, 255, 255), 40)
+        self.draw_text_centered("Test Phase", self.title_font, (255, 255, 255), -40)
+        self.draw_text_centered("Press Enter to Continue", self.label_font, (255, 255, 255), 40)
         pygame.display.flip()
 
         while True:
@@ -733,8 +733,8 @@ class CoherentMotionExperiment:
 
         # 本番開始画面
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("本番フェーズ", self.title_font, (255, 255, 255), -40)
-        self.draw_text_centered("Enterキーで開始", self.label_font, (255, 255, 255), 40)
+        self.draw_text_centered("Main Phase", self.title_font, (255, 255, 255), -40)
+        self.draw_text_centered("Press Enter to Continue", self.label_font, (255, 255, 255), 40)
         pygame.display.flip()
 
         while True:
