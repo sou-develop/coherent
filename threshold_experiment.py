@@ -494,8 +494,8 @@ class ThresholdExperiment:
     # テストフェーズ（練習試行）
     # --------------------------------------------------------
     def phase_test(self):
-        """テストフェーズ（2試行、コヒーレンス率20%固定）。結果は保存しない。"""
-        TEST_TRIALS = 2
+        """テストフェーズ（右・左 各1試行、コヒーレンス率20%固定）。結果は保存しない。"""
+        TEST_DIRECTIONS_DEG = [0, 180]  # 0°=右, 180°=左 を1回ずつ
         TEST_COHERENCE = 0.20
 
         # テスト開始画面
@@ -510,13 +510,12 @@ class ThresholdExperiment:
                 break
             self.clock.tick(FPS)
 
-        # テスト試行用の条件（コヒーレンス率20%固定、方向はランダム）
-        test_trials = []
-        for _ in range(TEST_TRIALS):
-            test_trials.append({
-                "direction_deg": random.choice(SIGNAL_DIRECTIONS_DEG),
-                "coherence": TEST_COHERENCE,
-            })
+        # テスト試行用の条件（コヒーレンス率20%固定、右・左を1回ずつ、順序はランダム）
+        test_trials = [
+            {"direction_deg": d, "coherence": TEST_COHERENCE}
+            for d in TEST_DIRECTIONS_DEG
+        ]
+        random.shuffle(test_trials)
 
         for trial in test_trials:
             self.current_coherence = trial["coherence"]
