@@ -661,7 +661,7 @@ class CoherentMotionExperiment:
         """実験終了画面"""
         pygame.event.clear()
         self.screen.fill(SCREEN_BG_COLOR)
-        self.draw_text_centered("End", self.title_font, (255, 255, 255), 0)
+        self.draw_text_centered("Finish", self.title_font, (255, 255, 255), 0)
         pygame.display.flip()
 
         waiting = True
