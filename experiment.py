@@ -512,8 +512,6 @@ class CoherentMotionExperiment:
 
             # --- 描画 ---
             self.screen.fill(SCREEN_BG_COLOR)
-            self.draw_text_centered("Enter the digits", self.label_font,
-                                    (255, 255, 255), -100)
 
             # グリッド
             cell = 50
@@ -539,8 +537,6 @@ class CoherentMotionExperiment:
                     self.screen.blit(txt, txt.get_rect(
                         center=(cx + cell // 2, gy + cell // 2)))
 
-            if pos > 0:
-                self.draw_text_centered("Press Enter to Confirm", self.small_font, (255, 255, 255), cell + 40)
 
             pygame.display.flip()
             self.clock.tick(FPS)
